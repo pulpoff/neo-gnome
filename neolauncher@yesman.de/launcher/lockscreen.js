@@ -24,7 +24,11 @@ const {readText, dbusCall, isPhone} = await import(`${here}/util.js?gen=${gen}`)
 // Like Android, the lock screen turns the panel off by itself after a short while untouched, whatever the
 // session's idle delay is (the dev phone runs with idle-delay 0, "never").
 const LOCK_TIMEOUT_S = 15;
-const LOCK_FADE_MS = 1000;     // the panel fades to black before it goes off; a touch meanwhile brings it back
+const LOCK_FADE_MS = 1000;
+// Outside the lock screen the panel goes off after this long without input (same fade), unless a call runs or
+// an app inhibits idle (video playback and the like, via the session manager).
+const SCREEN_TIMEOUT_S = 120;
+const GSM_INHIBIT_IDLE = 8;     // the panel fades to black before it goes off; a touch meanwhile brings it back
 
 // UPower's Device.State
 const UP_CHARGING = 1, UP_FULLY_CHARGED = 4, UP_PENDING_CHARGE = 5;
@@ -117,6 +121,8 @@ class LockScreen extends St.Widget {
                 return r;
             };
         }
+        this._idleMon = global.backend.get_core_idle_monitor();
+        this._idleWatch = this._idleMon.add_idle_watch(SCREEN_TIMEOUT_S * 1000, () => this._onIdle());
         // any touch, drag or key on the lock screen starts its timeout again
         this.connect('captured-event', (_a, ev) => {
             const t = ev.type();
@@ -147,6 +153,8 @@ class LockScreen extends St.Widget {
     }
 
     _onDestroy() {
+        if (this._idleWatch) { this._idleMon.remove_watch(this._idleWatch); this._idleWatch = 0; }
+        if (this._activeWatch) { this._idleMon.remove_watch(this._activeWatch); this._activeWatch = 0; }
         this._destroyed = true;
         this._disarm();
         if (this._pm) { delete this._pm._turnOffScreen; delete this._pm._turnOnScreen; this._pm = null; }   // back to the prototype's own
@@ -163,6 +171,23 @@ class LockScreen extends St.Widget {
 
     /** No lock while a call runs: the call screen owns the panel (proximity off/on) and must stay usable. */
     _inCall() { return !!this.home.callProximity?.active; }
+
+    /** 2 min without input outside the lock screen: fade and turn the panel off (the lock then comes up). */
+    _onIdle() {
+        if (this._destroyed || this.visible || this._inCall()) return;
+        Gio.DBus.session.call('org.gnome.SessionManager', '/org/gnome/SessionManager', 'org.gnome.SessionManager',
+            'IsInhibited', new GLib.Variant('(u)', [GSM_INHIBIT_IDLE]), new GLib.VariantType('(b)'), Gio.DBusCallFlags.NONE, 2000, null,
+            (conn, res) => {
+                let inhibited = false;
+                try { [inhibited] = conn.call_finish(res).deepUnpack(); } catch (_) {}
+                if (inhibited || this._destroyed || this.visible || this._inCall()) return;
+                this.log(`idle ${SCREEN_TIMEOUT_S} s: fading out`);
+                // any input during the fade takes the veil away and keeps the panel on
+                if (this._activeWatch) this._idleMon.remove_watch(this._activeWatch);
+                this._activeWatch = this._idleMon.add_user_active_watch(() => { this._activeWatch = 0; this._dropFade(); });
+                this._fadeOut();
+            });
+    }
 
     /** A black veil over the whole stage eases in; at full black the panel is turned off. */
     _fadeOut() {
