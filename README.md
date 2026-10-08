@@ -62,8 +62,13 @@ every user who has not written their own extension list. Nothing else is needed:
 in (or reboot) and the home screen is Neo. Disabling the extension in *Extensions*, or removing the
 package, brings the stock app grid back.
 
+A ready-built package is in `dist/` (`neolauncher-gnome-shell-1.0.0-r8.apk`, signed with
+`dist/pulp-6ac42643.rsa.pub`):
+
 ```sh
-sudo apk add --allow-untrusted neolauncher-gnome-shell-1.0.0-r0.apk   # or install the signing key first
+sudo cp dist/pulp-6ac42643.rsa.pub /etc/apk/keys/
+sudo apk add dist/neolauncher-gnome-shell-1.0.0-r8.apk
+# or, without trusting the key: sudo apk add --allow-untrusted dist/neolauncher-gnome-shell-1.0.0-r8.apk
 ```
 
 To build the package yourself you need an Alpine box or the phone itself with `alpine-sdk`, a key

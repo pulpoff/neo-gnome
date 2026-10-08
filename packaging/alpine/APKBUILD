@@ -4,7 +4,7 @@
 # or copy this directory plus the `make dist` tarball to an Alpine box and run `abuild -r`.
 pkgname=neolauncher-gnome-shell
 pkgver=1.0.0
-pkgrel=7
+pkgrel=8
 pkgdesc="Neo Launcher: Android-style home screen for GNOME Shell mobile"
 url="https://github.com/pulpoff/neo-gnome"
 arch="noarch"
