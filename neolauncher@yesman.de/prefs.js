@@ -112,6 +112,7 @@ export default class NeoLauncherPrefs extends ExtensionPreferences {
         g = group(p, 'Icons', 'Packs are folders under ~/.local/share/neolauncher/iconpacks (tools/import-iconpack.py turns an Android icon-pack APK into one)');
         combo(g, 'icon-pack', 'Icon pack', [['', 'None (icon theme)'], ...listPacks().map(x => [x.id, x.title])]);
         combo(g, 'icon-shape', 'Icon shape', SHAPES);
+        combo(g, 'shade-style', 'Notifications shade', [['default', 'Default'], ['miui', 'MIUI']]);
         sw(g, 'icon-legacy-treatment', 'Shape legacy icons', 'Put a tinted shaped background behind icons the pack does not cover');
         sw(g, 'icon-pack-wrap', 'Wrap unthemed icons', 'Draw the pack\'s own back, mask and overlay around icons it has no art for');
         sw(g, 'notification-dots', 'Notification dots'); sw(g, 'notification-count', 'Notification count');

@@ -153,7 +153,9 @@ class NeoHome extends St.Widget {
         // "Use USB for" when a computer is connected
         try { this.usbMode = new UsbMode(log); } catch (e) { console.warn(`[neolauncher] usb mode: ${e.message}`); }
         // the pull-down: a MIUI-style Control Center in the shell's quick settings menu
-        try { this.controlCenter = new ControlCenter(this); } catch (e) { console.warn(`[neolauncher] control center: ${e.message}\n${e.stack}`); }
+        // MIUI-style Control Center or GNOME's own quick settings, as the Theme setting says; switched live
+        this._applyShade();
+        this._shadeId = settings.connect('changed::shade-style', () => { if (!this._destroyed) this._applyShade(); });
         this._setupGestures();
         // The mobile shell's bottom bar (the home handle) reserves 18 px as a strut. That reservation stays: the
         // on-screen keyboard sits above the bar and the work area is cut by the keyboard alone, so with the strut
@@ -254,6 +256,7 @@ class NeoHome extends St.Widget {
         this.power?.destroy(); this.power = null;
         this.keyboardRotation?.destroy(); this.keyboardRotation = null;
         this.rotationAnim?.destroy(); this.rotationAnim = null;
+        if (this._shadeId) { this.settings?.disconnect?.(this._shadeId); this._shadeId = 0; }
         this.controlCenter?.destroy(); this.controlCenter = null;
         this.usbMode?.destroy(); this.usbMode = null;
         this.fullscreenGuard?.destroy(); this.fullscreenGuard = null;
@@ -504,6 +507,18 @@ class NeoHome extends St.Widget {
         this._pagesContainer.ease({x: -i * g.W, duration, mode});
         this._dotActors?.forEach((d, k) => { const o = k === i ? 255 : 128; if (d.opacity !== o) d.ease({opacity: o, duration: 150, mode: Clutter.AnimationMode.EASE_OUT_QUAD}); });   // PageIndicatorDots: a plain fade (an overshooting ease blinked)
     }
+    /** The shade: the launcher's Control Center for 'miui', GNOME's quick settings untouched for 'default'. */
+    _applyShade() {
+        // a settings object made before the key existed (a hot reload) must not be asked for it: that aborts the shell
+        const has = !!this.settings?.settings_schema?.has_key?.('shade-style');
+        const miui = !(has && this.settings.get_string('shade-style') === 'default');
+        if (miui && !this.controlCenter) {
+            try { this.controlCenter = new ControlCenter(this); } catch (e) { console.warn(`[neolauncher] control center: ${e.message}\n${e.stack}`); }
+        } else if (!miui && this.controlCenter) {
+            this.controlCenter.destroy(); this.controlCenter = null;
+        }
+    }
+
     _setupGestures() {
         // horizontal pan: page swipe with Launcher3 thresholds; vertical pan up: drawer
         const pan = new Clutter.PanGesture();

@@ -61,6 +61,7 @@
     <key name="theme-mode" type="s"><default>'system'</default><summary>system | light | dark | black</summary></key>
     <key name="theme-accent-color" type="s"><default>''</default><summary>empty = from wallpaper</summary></key>
     <key name="icon-shape" type="s"><default>'squircle'</default><summary>system | circle | squircle | rounded | cupertino | teardrop | cylinder | square | octagon | hexagon | diamond | egg</summary></key>
+    <key name="shade-style" type="s"><default>'miui'</default><summary>The pull-down from the top: miui = the launcher's Control Center (tiles, round toggles, pill sliders), default = GNOME's own quick settings</summary></key>
     <key name="icon-pack" type="s"><default>'h2o'</default><summary>id of a folder under ~/.local/share/neolauncher/iconpacks, '' = the icon theme</summary></key>
     <key name="icon-pack-wrap" type="b"><default>true</default><summary>apps the pack has no icon for get the pack's back/mask/upon (Android pack convention)</summary></key>
     <key name="icon-legacy-treatment" type="b"><default>true</default><summary>wrap non-adaptive icons on a tinted shaped background</summary></key>
