@@ -61,6 +61,8 @@ class NeoPopup extends St.BoxLayout {
     }
 });
 
+const PREFS_WM_CLASS = 'org.gnome.Shell.Extensions';
+
 /** Launch something from the home: the home (overview) must get out of the way, like AppCell.activate. */
 function launchAndLeave(home, fn, wmClass = null) {
     try { fn(); } catch (e) { logError(e, '[neolauncher] launch'); Main.notify?.('Neo Launcher', e.message); return; }
@@ -180,11 +182,13 @@ export function showOptionsPopup(home, x, y) {
             (Gio.DesktopAppInfo.new('gnome-background-panel.desktop') ?? Gio.DesktopAppInfo.new('org.gnome.Settings.desktop')).launch([], ctx);
         }, 'org.gnome.Settings')},
         {label: 'Home settings', icon: 'preferences-system-symbolic', run: () => launchAndLeave(home, () => {
-            // a prefs window that is already open just needs to come forward
-            const w = global.display.get_tab_list(0, null).find(x => /Extensions|Neo Launcher|neolauncher/i.test(`${x.get_wm_class()} ${x.get_title()}`));
-            if (w) { Main.activateWindow(w); return; }
+            // The prefs window belongs to org.gnome.Shell.Extensions (exactly: 'Extensions' alone also matched the
+            // Extension Manager app). launchAndLeave raises it, the one already open or the one that appears; without
+            // the wm class a new window could stay behind the home, so 'Home settings' only sometimes showed.
+            const open = global.display.get_tab_list(0, null).some(x => x.get_wm_class() === PREFS_WM_CLASS);
+            if (open) return;
             const p = Main.extensionManager.openExtensionPrefs(home.ext.uuid, '', {});
             if (p?.catch) p.catch(e => { if (!/Already showing/.test(e.message)) logError(e, '[neolauncher] prefs'); });
-        })},
+        }, PREFS_WM_CLASS)},
     ]);
 }
