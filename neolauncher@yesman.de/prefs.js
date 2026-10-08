@@ -10,6 +10,7 @@ import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import {listPacks, SHAPES} from './launcher/packs.js';
+import {shapePath} from './launcher/iconrender.js';
 
 const GESTURES = [['open_drawer', 'Open app drawer'], ['global_search', 'Launch global search'], ['open_notifications', 'Open notifications'], ['open_dash', 'Open Dash'], ['quick_settings', 'Open quick settings'], ['edit_mode', 'Edit Home Screen'], ['options_popup', 'Home options'], ['lock', 'Lock the phone'], ['none', 'Nothing']];
 const ENGINES = [['https://duckduckgo.com/?q=%s', 'DuckDuckGo'], ['https://www.google.com/search?q=%s', 'Google'], ['https://www.bing.com/search?q=%s', 'Bing'], ['https://search.brave.com/search?q=%s', 'Brave'], ['https://www.ecosia.org/search?q=%s', 'Ecosia'], ['https://www.startpage.com/do/search?q=%s', 'Startpage'], ['https://www.qwant.com/?q=%s', 'Qwant'], ['https://metager.org/meta/meta.ger3?eingabe=%s', 'MetaGer'], ['https://yandex.com/search/?text=%s', 'Yandex'], ['https://www.baidu.com/s?wd=%s', 'Baidu'], ['https://en.wikipedia.org/w/index.php?search=%s', 'Wikipedia'], ['https://alternativeto.net/browse/search/?q=%s', 'AlternativeTo']];
@@ -49,6 +50,24 @@ const CSS_DARK = `window.oneui, window.oneui .oneui-page { background-color: #00
   window.oneui row.oneui-value .subtitle { color: #3e91ff; }
   window.oneui switch:checked, window.oneui checkbutton radio:checked, window.oneui .oneui-slider scale highlight { background-color: #3e91ff; }
 `;
+
+/** A shape drawn the way the launcher clips icons (iconrender.js shapePath), in the text colour. 'system' keeps the
+ *  pack's own shapes: a dashed outline. */
+function shapePreview(shape, size = 38) {
+    const da = new Gtk.DrawingArea({content_width: size, content_height: size, valign: Gtk.Align.CENTER});
+    da.set_draw_func((area, cr, w, h) => {
+        const c = area.get_color();
+        cr.setSourceRGBA(c.red, c.green, c.blue, 0.88);
+        if (shape === 'system') {
+            shapePath(cr, 'squircle', Math.min(w, h));
+            cr.setLineWidth(1.6); cr.setDash([3, 3], 0); cr.stroke();
+        } else {
+            shapePath(cr, shape, Math.min(w, h)); cr.fill();
+        }
+        cr.$dispose();
+    });
+    return da;
+}
 
 export default class NeoLauncherPrefs extends ExtensionPreferences {
     fillPreferencesWindow(win) {
@@ -131,11 +150,15 @@ export default class NeoLauncherPrefs extends ExtensionPreferences {
          * A choice: the current value in blue under the title; a tap opens a page of big radio rows.
          * `pairs` = [[value, label]], get/set read and write the setting.
          */
-        const choiceRow = (g, key, title, pairs, get, set) => {
+        const choiceRow = (g, key, title, pairs, get, set, preview = null) => {
             if (!has(key)) return;
             const r = new Adw.ActionRow({title, activatable: true}); r.add_css_class('oneui-value');
             const label = () => pairs.find(p => p[0] === get())?.[1] ?? String(get());
-            const sync = () => { r.subtitle = label(); };
+            let pv = null;
+            const sync = () => {
+                r.subtitle = label();
+                if (preview) { if (pv) r.remove(pv); pv = preview(get()); r.add_suffix(pv); }
+            };
             sync(); follow(key, sync);
             r.connect('activated', () => subpage(title, p => {
                 const cg = group(p);
@@ -145,13 +168,14 @@ export default class NeoLauncherPrefs extends ExtensionPreferences {
                     const radio = new Gtk.CheckButton({active: v === get(), valign: Gtk.Align.CENTER, can_focus: false});
                     if (first) radio.set_group(first); else first = radio;
                     row.add_prefix(radio); row.set_activatable_widget(radio);
+                    if (preview) row.add_suffix(preview(v));
                     radio.connect('toggled', () => { if (radio.active && get() !== v) { set(v); GLib.timeout_add(GLib.PRIORITY_DEFAULT, 180, () => { win.pop_subpage(); return GLib.SOURCE_REMOVE; }); } });
                     cg.add(row);
                 }
             }));
             g.add(r);
         };
-        const choice = (g, key, title, pairs) => choiceRow(g, key, title, pairs, () => s.get_string(key), v => s.set_string(key, v));
+        const choice = (g, key, title, pairs, preview = null) => choiceRow(g, key, title, pairs, () => s.get_string(key), v => s.set_string(key, v), preview);
         const choiceInt = (g, key, title, pairs) => choiceRow(g, key, title, pairs, () => s.get_int(key), v => s.set_int(key, v));
         /** A slider under its title, the value at the right of the title. */
         const slider = (g, key, title, lo, hi, step = 0.05, fmt = v => `${Math.round(v * 100)} %`) => {
@@ -272,7 +296,7 @@ export default class NeoLauncherPrefs extends ExtensionPreferences {
             choice(g, 'shade-style', 'Notifications shade', [['miui', 'MIUI'], ['default', 'Default']]);
             g = group(p, 'Icons', 'Packs are folders under ~/.local/share/neolauncher/iconpacks');
             choice(g, 'icon-pack', 'Icon pack', [['', 'None (icon theme)'], ...listPacks().map(x => [x.id, x.title])]);
-            choice(g, 'icon-shape', 'Icon shape', SHAPES);
+            choice(g, 'icon-shape', 'Icon shape', SHAPES, v => shapePreview(v));
             sw(g, 'icon-legacy-treatment', 'Shape legacy icons', 'A tinted shaped background behind icons the pack does not cover');
             sw(g, 'icon-pack-wrap', 'Wrap unthemed icons', 'The pack\'s own back, mask and overlay around icons it has no art for');
             g = group(p, 'Notifications');
