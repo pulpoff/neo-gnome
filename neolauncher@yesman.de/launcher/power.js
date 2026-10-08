@@ -95,7 +95,10 @@ const RING_DIR = '/usr/share/plymouth/themes/yesman-ring';
  */
 function goingDown(text, action) {
     const stage = global.stage, W = stage.width, H = stage.height;
+    // St sizes are logical; Plymouth draws in device pixels. Logical -> device is the monitor's geometry scale
+    // (3 on the Poco, whose stage is 360x800 with St's own scale at 1) times St's scale.
     const scale = St.ThemeContext.get_for_stage(stage).scale_factor || 1;
+    const dev = (Main.layoutManager.primaryMonitor?.geometry_scale || 1) * scale;
     const screen = new St.Widget({style: 'background-color: black;', reactive: true, opacity: 0, x: 0, y: 0, width: W, height: H,
         layout_manager: new Clutter.FixedLayout()});
     const frames = [];
@@ -106,20 +109,21 @@ function goingDown(text, action) {
     }
     let anim = null, timer = 0;
     if (frames.length === 41) {
-        // Plymouth draws the 640 px frames unscaled (smaller only if wider than 80 % of the screen)
-        const px = Math.min(640, Math.round(W * 0.8));
-        anim = new St.Icon({gicon: frames[0], icon_size: Math.round(px / scale)});
+        // Plymouth draws the 640 px frames unscaled (smaller only if wider than 80 % of the screen), in device pixels
+        const px = Math.min(640, W * dev * 0.8) / dev;          // logical
+        anim = new St.Icon({gicon: frames[0], icon_size: Math.round(px * dev / scale) / dev * scale});
+        anim.set_size(px, px);
         anim.set_position(Math.round((W - px) / 2), Math.round((H - px) / 2));
         screen.add_child(anim);
         let n = 0;
         timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, Math.round(1000 / 35), () => { anim.gicon = frames[++n % 41]; return GLib.SOURCE_CONTINUE; });
     } else {
         const sp = new Animation.Spinner(48, {animate: true});
-        sp.set_position(Math.round(W / 2 - 24 * scale), Math.round(H / 2 - 24 * scale));
+        sp.set_position(Math.round(W / 2 - 24), Math.round(H / 2 - 24));
         screen.add_child(sp); sp.play();
     }
     // Plymouth's message: Sans 24, light grey, centred at 80 % of the height
-    const label = new St.Label({text, style: `color: rgb(204,204,204); font-family: Sans; font-size: ${Math.round(24 * 4 / 3 / scale)}px;`});
+    const label = new St.Label({text, style: `color: rgb(204,204,204); font-family: Sans; font-size: ${(24 * 4 / 3 / dev).toFixed(2)}px;`});
     screen.add_child(label);
     label.connect('notify::width', () => label.set_position(Math.round((W - label.width) / 2), Math.round(H * 0.8)));
     Main.layoutManager.uiGroup.add_child(screen);
