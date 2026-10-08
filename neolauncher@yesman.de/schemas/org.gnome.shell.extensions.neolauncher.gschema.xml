@@ -39,7 +39,7 @@
     <key name="drawer-background-opacity" type="d"><default>1.0</default><range min="0.0" max="1.0"/></key>
     <key name="drawer-save-scroll-position" type="b"><default>false</default></key>
     <key name="drawer-hide-scrollbar" type="b"><default>false</default></key>
-    <key name="search-drawer-enabled" type="b"><default>true</default></key>
+    <key name="search-drawer-enabled" type="b"><default>false</default><summary>The search bar at the top of the app drawer (off by default: the drawer looks cleaner without it)</summary></key>
     <key name="search-fuzzy" type="b"><default>false</default></key>
     <key name="search-hidden-apps" type="b"><default>false</default></key>
     <key name="search-global" type="b"><default>true</default></key>
