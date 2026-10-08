@@ -19,21 +19,21 @@ const range = (lo, hi, step = 1, fmt = v => String(v)) => { const r = []; for (l
 // One UI's look. Sizes are logical px at the phone's scale; colours follow the light/dark style.
 const CSS = `
 window.oneui, window.oneui .oneui-page { background-color: #f6f6f6; }
-window.oneui headerbar { background: transparent; box-shadow: none; min-height: 64px; }
-window.oneui headerbar .title, window.oneui headerbar .oneui-title { font-size: 24px; font-weight: 800; }
+window.oneui headerbar { background: transparent; box-shadow: none; min-height: 56px; }
+window.oneui headerbar .title, window.oneui headerbar .oneui-title { font-size: 17px; font-weight: 800; }
 window.oneui preferencespage > scrolledwindow > viewport > clamp > box { margin: 0 12px; }
-window.oneui .oneui-hero .heading { font-size: 32px; font-weight: 800; margin: 18px 0 10px 8px; color: @window_fg_color; opacity: 1; }
-window.oneui .oneui-hero .dim-label, window.oneui .oneui-lead { font-size: 17px; font-weight: 600; margin: 0 8px 6px 8px; }
-window.oneui preferencesgroup .heading { font-size: 15px; font-weight: 700; color: alpha(currentColor, .55); margin-left: 18px; }
+window.oneui .oneui-hero .heading { font-size: 22px; font-weight: 800; margin: 18px 0 10px 8px; color: @window_fg_color; opacity: 1; }
+window.oneui .oneui-hero .dim-label, window.oneui .oneui-lead { font-size: 14px; font-weight: 600; margin: 0 8px 6px 8px; }
+window.oneui preferencesgroup .heading { font-size: 14px; font-weight: 700; color: alpha(currentColor, .55); margin-left: 18px; }
 window.oneui .boxed-list { background-color: #ffffff; border-radius: 26px; box-shadow: none; border: none; }
-window.oneui .boxed-list > row { min-height: 70px; padding: 4px 14px; border-bottom: 1px solid alpha(currentColor, .08); background: transparent; }
+window.oneui .boxed-list > row { min-height: 62px; padding: 4px 14px; border-bottom: 1px solid alpha(currentColor, .08); background: transparent; }
 window.oneui .boxed-list > row:last-child { border-bottom: none; }
 window.oneui .boxed-list > row:first-child { border-top-left-radius: 26px; border-top-right-radius: 26px; }
 window.oneui .boxed-list > row:last-child { border-bottom-left-radius: 26px; border-bottom-right-radius: 26px; }
-window.oneui row .title { font-size: 19px; font-weight: 700; }
-window.oneui row .subtitle { font-size: 15px; font-weight: 500; }
+window.oneui row .title { font-size: 17px; font-weight: 700; }
+window.oneui row .subtitle { font-size: 14px; font-weight: 500; }
 window.oneui row.oneui-value .subtitle { color: #0381fe; opacity: 1; font-weight: 600; }
-window.oneui .oneui-cat-icon { border-radius: 999px; min-width: 42px; min-height: 42px; color: white; margin-right: 6px; }
+window.oneui .oneui-cat-icon { border-radius: 999px; min-width: 36px; min-height: 36px; color: white; margin-right: 6px; }
 window.oneui switch:checked { background-color: #0381fe; }
 window.oneui checkbutton check:checked, window.oneui checkbutton radio:checked { background-color: #0381fe; color: white; }
 window.oneui checkbutton radio { min-width: 26px; min-height: 26px; }
@@ -69,7 +69,19 @@ export default class NeoLauncherPrefs extends ExtensionPreferences {
         applyDark();
         const darkId = styles.connect('notify::dark', applyDark);
         win.connect('close-request', () => { styles.disconnect(darkId); return false; });
-        win.set_title('');                // the start page has its own big title
+        // The start page's title goes in the window's own header bar, left-aligned next to the close button like
+        // the sub-pages' "< Title" (the window does not expose its header bar: find it in the widget tree).
+        win.set_title('Neo Launcher');
+        win.connect('map', () => {
+            const find = w => { for (let c = w?.get_first_child(); c; c = c.get_next_sibling()) { if (c instanceof Adw.HeaderBar) return c; const r = find(c); if (r) return r; } return null; };
+            const hb = find(win);
+            if (!hb || hb._oneui) return;
+            hb._oneui = true;
+            hb.centering_policy = Adw.CenteringPolicy.LOOSE;
+            const tl = new Gtk.Label({label: 'Neo Launcher', halign: Gtk.Align.START, hexpand: true, margin_start: 8});
+            tl.add_css_class('oneui-title');
+            hb.set_title_widget(tl);
+        });
         win.add_css_class('oneui');
         win.set_search_enabled(false);
         win.set_default_size(420, 860);
@@ -164,7 +176,7 @@ export default class NeoLauncherPrefs extends ExtensionPreferences {
         /** A start-page category: coloured round icon, title, "a • b" subtitle; tap = its sub-page. */
         const category = (g, title, items, icon, colour, build) => {
             const r = new Adw.ActionRow({title, subtitle: items.join('  •  '), activatable: true});
-            const ic = new Gtk.Image({icon_name: icon, pixel_size: 22, valign: Gtk.Align.CENTER});
+            const ic = new Gtk.Image({icon_name: icon, pixel_size: 19, valign: Gtk.Align.CENTER});
             ic.add_css_class('oneui-cat-icon');
             const p = new Gtk.CssProvider(); p.load_from_string(`image { background-color: ${colour}; }`);
             ic.get_style_context().add_provider(p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
@@ -298,7 +310,7 @@ export default class NeoLauncherPrefs extends ExtensionPreferences {
         };
 
         // ---- the start page ------------------------------------------------------------------------
-        const start = newPage('Neo Launcher');
+        const start = newPage(null);
         start.set_title('Settings'); start.set_icon_name('emblem-system-symbolic');
         let g = group(start);
         category(g, 'Home screen', ['Icons', 'Grid', 'Folders'], 'user-home-symbolic', '#3e7bfa', homeScreen);
