@@ -8,6 +8,8 @@ import Gio from 'gi://Gio';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
+import * as Dialog from 'resource:///org/gnome/shell/ui/dialog.js';
 
 const gen = (import.meta.url.match(/[?&]gen=(\d+)/) ?? [])[1] ?? '0';
 const P = {width: 216, rowH: 52, radius: 16, openMs: 200, closeMs: 233, gap: 8};
@@ -86,6 +88,65 @@ function launchAndLeave(home, fn, wmClass = null) {
     home._cancelLaunchWatch = cancel;
 }
 
+/**
+ * Where an app came from, for App info and Uninstall: a Flatpak (its .desktop file is exported by flatpak) or the
+ * Alpine package that owns its .desktop file. null when neither can be told.
+ */
+function appSource(app) {
+    const file = app.get_app_info()?.get_filename?.() ?? '';
+    const id = app.get_id().replace(/\.desktop$/, '');
+    if (file.includes('/flatpak/exports/')) return Promise.resolve({kind: 'flatpak', id, user: file.startsWith(GLib.get_home_dir())});
+    if (!file) return Promise.resolve(null);
+    return new Promise(resolve => {
+        try {
+            const proc = Gio.Subprocess.new(['apk', 'info', '--who-owns', file], Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE);
+            proc.communicate_utf8_async(null, null, (pr, res) => {
+                try {
+                    const [, out] = pr.communicate_utf8_finish(res);
+                    const m = out?.match(/is owned by (\S+)/);
+                    resolve(m ? {kind: 'apk', pkg: m[1].replace(/-[0-9][^-]*-r[0-9]+$/, '')} : null);   // name-1.2.3-r0 -> name
+                } catch (_) { resolve(null); }
+            });
+        } catch (_) { resolve(null); }
+    });
+}
+
+/** App info: the app's page in GNOME Software, looked up the way it was installed (package or Flatpak). */
+async function openInSoftware(home, app) {
+    const src = await appSource(app);
+    const arg = src?.kind === 'flatpak' ? `--details=${src.id}` : src?.kind === 'apk' ? `--details-pkg=${src.pkg}` : `--details=${app.get_id()}`;
+    launchAndLeave(home, () => Gio.Subprocess.new(['gnome-software', arg], Gio.SubprocessFlags.NONE), 'org.gnome.Software');
+}
+
+/** Uninstall straight from the menu: confirm, then apk-polkit (asks for the admin password) or flatpak. */
+async function uninstallApp(app) {
+    const name = app.get_name();
+    const src = await appSource(app);
+    if (!src) { Main.notify(name, 'Cannot tell how this app was installed'); return; }
+    const what = src.kind === 'apk' ? `the package "${src.pkg}"` : `the Flatpak "${src.id}"`;
+    const dlg = new ModalDialog.ModalDialog();
+    dlg.contentLayout.add_child(new Dialog.MessageDialogContent({title: `Uninstall ${name}?`, description: `This removes ${what} and its data from the phone.`}));
+    const done = err => Main.notify(name, err ? `Uninstall failed: ${err.message}` : 'Uninstalled');
+    dlg.setButtons([
+        {label: 'Cancel', action: () => dlg.close(), key: Clutter.KEY_Escape},
+        {label: 'Uninstall', destructive_action: true, action: () => {
+            dlg.close();
+            if (src.kind === 'apk') {
+                Gio.DBus.system.call('dev.Cogitri.apkPolkit2', '/dev/Cogitri/apkPolkit2', 'dev.Cogitri.apkPolkit2', 'DeletePackages',
+                    new GLib.Variant('(as)', [[src.pkg]]), null, Gio.DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION, -1, null,
+                    (conn, res) => { try { conn.call_finish(res); done(null); } catch (e) { done(e); } });
+            } else {
+                const proc = Gio.Subprocess.new(['flatpak', 'uninstall', '-y', src.user ? '--user' : '--system', src.id], Gio.SubprocessFlags.STDERR_PIPE);
+                proc.communicate_utf8_async(null, null, (pr, res) => {
+                    try { const [, , errOut] = pr.communicate_utf8_finish(res); done(pr.get_successful() ? null : new Error((errOut ?? '').trim().split('\n').pop() || 'flatpak failed')); }
+                    catch (e) { done(e); }
+                });
+            }
+        }},
+    ]);
+    dlg.open();
+}
+
 function iconRect(cell) {
     const bin = cell._iconBin ?? cell; const [x, y] = bin.get_transformed_position();
     return {x, y, w: bin.width * (bin.scale_x || 1), h: bin.height * (bin.scale_y || 1)};
@@ -103,10 +164,8 @@ export function showIconPopup(home, cell) {
     else if (cell.pageIndex === -1) items.push({label: 'Remove', icon: 'user-trash-symbolic', run: () => home.model.removeFromDock(item)});
     else if (cell.pageIndex === undefined || cell.pageIndex === null) items.push({label: 'Hide', icon: 'view-conceal-symbolic', run: () => { const h = home.model.hidden(); h.add(item.id); home.model.setHidden(h); }});
     if (app) {
-        items.push({label: 'App info', icon: 'dialog-information-symbolic', run: () => launchAndLeave(home, () => Gio.AppInfo.launch_default_for_uri(`appstream://${app.get_id()}`, global.create_app_launch_context(global.get_current_time(), -1)))});
-        // GNOME has no uninstall call of its own: Software's details page for the app, which offers Remove
-        const software = home.settings.get_boolean('desktop-popup-uninstall') && GLib.find_program_in_path('gnome-software');
-        if (software) items.push({label: 'Uninstall in Software', icon: 'edit-delete-symbolic', run: () => launchAndLeave(home, () => Gio.Subprocess.new([software, `--details=${app.get_id()}`], Gio.SubprocessFlags.NONE), 'org.gnome.Software')});
+        items.push({label: 'App info', icon: 'dialog-information-symbolic', run: () => openInSoftware(home, app)});
+        items.push({label: 'Uninstall', icon: 'edit-delete-symbolic', run: () => uninstallApp(app)});
     }
     return new NeoPopup(home, iconRect(cell), items);
 }

@@ -155,14 +155,33 @@ class NeoHome extends St.Widget {
         // the pull-down: a MIUI-style Control Center in the shell's quick settings menu
         try { this.controlCenter = new ControlCenter(this); } catch (e) { console.warn(`[neolauncher] control center: ${e.message}\n${e.stack}`); }
         this._setupGestures();
-        // The mobile shell's bottom bar (the home handle, transparent here) reserves 18 px as a strut, so every
-        // maximized window stopped short of the screen's bottom edge and the wallpaper showed under it. Apps
-        // draw under the handle, as with Android's gesture navigation; the bar stays on top for the swipe up.
-        this._bottomStrut = Main.layoutManager._trackedActors?.find(t => t.actor === Main.layoutManager.bottomPanelBox && t.affectsStruts) ?? null;
-        if (this._bottomStrut) { this._bottomStrut.affectsStruts = false; Main.layoutManager._queueUpdateRegions(); }
-        // and the bar itself is see-through, only the handle line shows (Android's gesture bar): over an app it
-        // was an opaque dark strip that cut the app's bottom edge
-        Main.layoutManager.bottomPanelBox?.add_style_class_name('neo-clear-bottom-bar');   // stock GNOME has no bottom bar
+        // The mobile shell's bottom bar (the home handle) reserves 18 px as a strut. That reservation stays: the
+        // on-screen keyboard sits above the bar and the work area is cut by the keyboard alone, so with the strut
+        // off (2026-10-06 to 10-08) every app ran 18 px under the keyboard's top edge (half-covered text fields
+        // in Telegram, Chats, Yesman). Only the bar's look changes: see-through on the home (just the handle line,
+        // Android's gesture bar), the window colour under Yesman, the shell's own opaque bar under other apps.
+        this._barTracker = Shell.WindowTracker.get_default();
+        this._barIface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+        this._updateBar = () => {
+            const bar = Main.layoutManager.bottomPanelBox; if (!bar) return;
+            const win = global.display.focus_window;
+            const app = win ? this._barTracker.get_window_app(win)?.get_id() : null;
+            const home = Main.overview.visible || !win;
+            bar.remove_style_class_name('neo-clear-bottom-bar');
+            bar.set_style(null);
+            if (home) bar.add_style_class_name('neo-clear-bottom-bar');
+            else if (app === 'de.yesman.app.desktop') {
+                const dark = this._barIface.get_string('color-scheme') === 'prefer-dark';
+                bar.set_style(`background-color: ${dark ? '#16202F' : '#F7F5F0'}; box-shadow: none;`);   // Yesman's y_surface
+            }
+        };
+        this._barIds = [
+            [Main.overview, Main.overview.connect('showing', this._updateBar)],
+            [Main.overview, Main.overview.connect('hidden', this._updateBar)],
+            [global.display, global.display.connect('notify::focus-window', this._updateBar)],
+            [this._barIface, this._barIface.connect('changed::color-scheme', this._updateBar)],
+        ];
+        this._updateBar();
 
         this.drawer = new Drawer(this);
         this._content.add_child(this.drawer);
@@ -240,8 +259,10 @@ class NeoHome extends St.Widget {
         this.fullscreenGuard?.destroy(); this.fullscreenGuard = null;
         this.cursorGuard?.destroy(); this.cursorGuard = null;
         if (this._drawerTimer) { GLib.source_remove(this._drawerTimer); this._drawerTimer = 0; }
-        if (this._bottomStrut) { this._bottomStrut.affectsStruts = true; this._bottomStrut = null; Main.layoutManager._queueUpdateRegions(); }
+        for (const [obj, id] of this._barIds ?? []) obj.disconnect(id);
+        this._barIds = null;
         Main.layoutManager.bottomPanelBox?.remove_style_class_name('neo-clear-bottom-bar');
+        Main.layoutManager.bottomPanelBox?.set_style(null);
         this.callProximity?.destroy(); this.callProximity = null;
         this.lockScreen?.destroy(); this.lockScreen = null;
         this._unsub?.(); this._unsub = null; this.model?.destroy();

@@ -16,6 +16,7 @@ import Clutter from 'gi://Clutter';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as Animation from 'resource:///org/gnome/shell/ui/animation.js';
 import * as SystemActions from 'resource:///org/gnome/shell/misc/systemActions.js';
 import {InjectionManager} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
@@ -56,8 +57,8 @@ export function showPowerDialog() {
         b.connect('clicked', () => { dlg.close(); run(); });
         box.add_child(b);
     };
-    entry('system-shutdown-symbolic', 'Power off', () => logindAction('PowerOff'));
-    entry('view-refresh-symbolic', 'Restart', () => logindAction('Reboot'));
+    entry('system-shutdown-symbolic', 'Power off', () => goingDown('Powering off…', 'PowerOff'));
+    entry('view-refresh-symbolic', 'Restart', () => goingDown('Restarting…', 'Reboot'));
     entry('weather-clear-night-symbolic', 'Suspend', () => Main.powerManager?.suspend?.());
     dlg.contentLayout.add_child(box);
     // no Cancel button: a tap anywhere outside the card closes it (and Escape / back)
@@ -82,6 +83,51 @@ export function showPowerDialog() {
     dlg.connect('closed', () => { dialog = null; dlg.disconnect(tapId); });
     dialog = dlg;
     dlg.open();
+}
+
+const RING_DIR = '/usr/share/plymouth/themes/yesman-ring';
+
+/**
+ * Power off / Restart: the boot splash's own ring (the Plymouth theme's frames, 35 fps) on black with what is
+ * happening under it, the same picture Plymouth shows once the session has ended (yesman-ring.script), so the
+ * choice visibly took and the hand-over does not change the screen. A spinner if the theme is not installed.
+ * It holds the input grab, and the logind call goes out once it is painted.
+ */
+function goingDown(text, action) {
+    const stage = global.stage, W = stage.width, H = stage.height;
+    const scale = St.ThemeContext.get_for_stage(stage).scale_factor || 1;
+    const screen = new St.Widget({style: 'background-color: black;', reactive: true, opacity: 0, x: 0, y: 0, width: W, height: H,
+        layout_manager: new Clutter.FixedLayout()});
+    const frames = [];
+    for (let i = 0; i < 41; i++) {
+        const f = Gio.File.new_for_path(`${RING_DIR}/frame${String(i).padStart(2, '0')}.png`);
+        if (!f.query_exists(null)) break;
+        frames.push(new Gio.FileIcon({file: f}));
+    }
+    let anim = null, timer = 0;
+    if (frames.length === 41) {
+        // Plymouth draws the 640 px frames unscaled (smaller only if wider than 80 % of the screen)
+        const px = Math.min(640, Math.round(W * 0.8));
+        anim = new St.Icon({gicon: frames[0], icon_size: Math.round(px / scale)});
+        anim.set_position(Math.round((W - px) / 2), Math.round((H - px) / 2));
+        screen.add_child(anim);
+        let n = 0;
+        timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, Math.round(1000 / 35), () => { anim.gicon = frames[++n % 41]; return GLib.SOURCE_CONTINUE; });
+    } else {
+        const sp = new Animation.Spinner(48, {animate: true});
+        sp.set_position(Math.round(W / 2 - 24 * scale), Math.round(H / 2 - 24 * scale));
+        screen.add_child(sp); sp.play();
+    }
+    // Plymouth's message: Sans 24, light grey, centred at 80 % of the height
+    const label = new St.Label({text, style: `color: rgb(204,204,204); font-family: Sans; font-size: ${Math.round(24 * 4 / 3 / scale)}px;`});
+    screen.add_child(label);
+    label.connect('notify::width', () => label.set_position(Math.round((W - label.width) / 2), Math.round(H * 0.8)));
+    Main.layoutManager.uiGroup.add_child(screen);
+    Main.layoutManager.uiGroup.set_child_above_sibling(screen, null);
+    screen.connect('destroy', () => { if (timer) GLib.source_remove(timer); });
+    try { Main.pushModal(screen); } catch (_) {}
+    screen.ease({opacity: 255, duration: 250, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => { logindAction(action); return GLib.SOURCE_REMOVE; });
 }
 
 /** Close the power dialog if it is open (the back gesture); true when there was one. */
