@@ -75,7 +75,9 @@ class Drawer extends St.Widget {
         this.connect('notify::allocation', () => { this._sizeList(); this._applyProgress(this._progress, false); });
         // Only the app set matters here: a drag/drop or rename ('layout') changes nothing in the drawer, hidden apps
         // arrive through the drawer-hidden-apps setting (home), and home refreshes it after a rotation, off the animation.
-        this._unsub = this.model.onChange(what => { if (what === 'apps') this.refresh(); });
+        // 'apps' fires on every installed-changed (a desktop file touched by a background refresh): rebuild only when
+        // what the drawer shows changed, or the rows rebuilt in idle made icons blink when the drawer was opened
+        this._unsub = this.model.onChange(what => { if (what === 'apps' && this._drawerSignature() !== this._builtSignature) this.refresh(); });
         // the shell's overview swipe is given back by home (_onDestroy), not here
         this.connect('destroy', () => {
             this._destroyed = true;
@@ -141,7 +143,16 @@ class Drawer extends St.Widget {
     }
     _cellW(cols) { return Math.floor((Main.layoutManager.primaryMonitor.width - 2 * D.sidePad - D.railW) / cols); }
 
+    /** What the grid is built from: the apps in order and the settings that shape it. */
+    _drawerSignature() {
+        const k = n => (this.settings.settings_schema.has_key(n) ? this.settings.get_value(n).print(false) : '');
+        return JSON.stringify([this.model.drawerApps().map(a => a.get_id()),
+            ['drawer-grid-columns', 'drawer-layout', 'drawer-sort-mode', 'drawer-app-suggestions', 'drawer-hide-labels',
+             'drawer-icon-scale', 'drawer-label-scale', 'drawer-multiline-label', 'drawer-hidden-apps'].map(k),
+            this.home?.drawerColumns?.() ?? 0]);
+    }
     refresh(...args) {
+        this._builtSignature = this._drawerSignature();
         this._refresh(...args);
         this._syncSpacers();              // the rebuild cleared them; they go back first and last
     }
@@ -320,10 +331,11 @@ class Drawer extends St.Widget {
         const fade = atomic ? Math.max(0, Math.min(1, (p - 0.333) / 0.5)) : Math.max(0, Math.min(1, (p - 0.4) / 0.4));
         this._content.opacity = Math.round(255 * fade);
         this.opacity = Math.round(255 * Math.max(0, Math.min(1, atomic ? (p - 0.264) / 0.57 : (p - 0.117) / 0.283)));
-        // workspace + hotseat: scale to 0.97, fade out past the step (0.4 manual / 0.33 atomic)
+        // workspace + hotseat: no scaling, a fade that follows the sheet
         const ws = this.home._column; const step = atomic ? 0.333 : 0.4;
-        ws.set_pivot_point(0.5, 0.5); ws.scale_x = ws.scale_y = 1 - 0.03 * Math.min(1, p / 0.4);
-        ws.opacity = p > step ? 0 : 255;
+        ws.scale_x = ws.scale_y = 1;
+        // faded over the whole swipe: gone exactly when the drawer is fully open, not halfway up
+        ws.opacity = Math.round(255 * (1 - p));
     }
     /** Driven by an St.Adjustment eased on the frame clock (a GLib timer at 8 ms jittered against 120 Hz). */
     _animateTo(target, duration, mode = Clutter.AnimationMode.EASE_OUT_QUINT) {
