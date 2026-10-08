@@ -156,6 +156,7 @@ class NeoHome extends St.Widget {
         // MIUI-style Control Center or GNOME's own quick settings, as the Theme setting says; switched live
         this._applyShade();
         this._shadeId = settings.connect('changed::shade-style', () => { if (!this._destroyed) this._applyShade(); });
+        this._hookQuickSettingsLaunchers();
         this._setupGestures();
         // The mobile shell's bottom bar (the home handle) reserves 18 px as a strut. That reservation stays: the
         // on-screen keyboard sits above the bar and the work area is cut by the keyboard alone, so with the strut
@@ -257,6 +258,9 @@ class NeoHome extends St.Widget {
         this.keyboardRotation?.destroy(); this.keyboardRotation = null;
         this.rotationAnim?.destroy(); this.rotationAnim = null;
         if (this._shadeId) { this.settings?.disconnect?.(this._shadeId); this._shadeId = 0; }
+        for (const [o, id] of this._qsLaunchIds ?? []) { try { o.disconnect(id); } catch (_) {} }
+        this._qsLaunchIds = null;
+        if (this._qsRaise) { GLib.source_remove(this._qsRaise); this._qsRaise = 0; }
         this.controlCenter?.destroy(); this.controlCenter = null;
         this.usbMode?.destroy(); this.usbMode = null;
         this.fullscreenGuard?.destroy(); this.fullscreenGuard = null;
@@ -507,6 +511,32 @@ class NeoHome extends St.Widget {
         this._pagesContainer.ease({x: -i * g.W, duration, mode});
         this._dotActors?.forEach((d, k) => { const o = k === i ? 255 : 128; if (d.opacity !== o) d.ease({opacity: o, duration: 150, mode: Clutter.AnimationMode.EASE_OUT_QUAD}); });   // PageIndicatorDots: a plain fade (an overshooting ease blinked)
     }
+    /**
+     * GNOME's own quick settings (the 'Default' shade): its Settings button and the battery (power settings) start
+     * GNOME Settings while the home is showing; the window opened and took the focus but stayed under the home,
+     * so the buttons seemed dead. After either is pressed, the Settings window is raised once it exists.
+     */
+    _hookQuickSettingsLaunchers() {
+        const box = Main.panel.statusArea?.quickSettings?._system?.quickSettingsItems?.[0]?.get_first_child?.();
+        if (!box) return;
+        this._qsLaunchIds = [];
+        for (const c of box.get_children()) {
+            if (c.constructor.name !== 'SettingsItem' && c.constructor.name !== 'PowerToggle') continue;
+            this._qsLaunchIds.push([c, c.connect('clicked', () => this._raiseWhenUp('org.gnome.Settings'))]);
+        }
+    }
+    _raiseWhenUp(wmClass) {
+        if (this._qsRaise) GLib.source_remove(this._qsRaise);
+        let tries = 80;
+        this._qsRaise = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+            const w = global.display.get_tab_list(0, null).find(x => x.get_wm_class() === wmClass);
+            if (!w && --tries > 0) return GLib.SOURCE_CONTINUE;
+            this._qsRaise = 0;
+            if (w) { Main.overview.hide(); Main.activateWindow(w); }
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
     /** The shade: the launcher's Control Center for 'miui', GNOME's quick settings untouched for 'default'. */
     _applyShade() {
         // a settings object made before the key existed (a hot reload) must not be asked for it: that aborts the shell
