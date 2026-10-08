@@ -123,6 +123,12 @@ See `NEO-SPEC.md` §1 for the full inventory. Not yet ported: home-screen widget
 row (no AppWidget on Linux), drawer categories and tabs (fall back to the vertical list), folder
 cover mode and paging beyond 9 items, search suggestions, per-app icon overrides.
 
+## Quiet U-Boot for the POCO X3 NFC
+
+`u-boot/` holds the boot loader this launcher was developed on: a quiet U-Boot that leaves the
+panel dark and draws a small gear under the POCO logo. It includes the flashable image, the
+original image for rollback, and the patch and config to build it. See `u-boot/README.md`.
+
 ## License
 
 GPL-3.0, like Neo Launcher. This is an independent re-implementation of Neo Launcher's design for
