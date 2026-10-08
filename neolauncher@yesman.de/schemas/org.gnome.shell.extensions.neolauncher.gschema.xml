@@ -9,7 +9,7 @@
     <key name="default-page" type="i"><default>0</default></key>
     <!-- Neo Launcher preferences (names follow NeoPrefs; defaults from NEO-SPEC §1.9) -->
     <key name="desktop-grid-rows" type="i"><default>5</default><range min="3" max="8"/></key>
-    <key name="desktop-grid-columns" type="i"><default>5</default><range min="3" max="8"/></key>
+    <key name="desktop-grid-columns" type="i"><default>4</default><range min="3" max="8"/></key>
     <key name="desktop-icon-scale" type="d"><default>1.0</default><range min="0.5" max="2.0"/></key>
     <key name="desktop-label-scale" type="d"><default>1.0</default><range min="0.5" max="2.0"/></key>
     <key name="desktop-hide-app-labels" type="b"><default>false</default></key>
@@ -21,12 +21,12 @@
     <key name="desktop-folder-columns" type="i"><default>3</default><range min="2" max="5"/></key>
     <key name="desktop-folder-rows" type="i"><default>3</default><range min="2" max="5"/></key>
     <key name="dock-enabled" type="b"><default>true</default></key>
-    <key name="dock-num-icons" type="i"><default>5</default><range min="2" max="16"/></key>
+    <key name="dock-num-icons" type="i"><default>4</default><range min="2" max="16"/></key>
     <key name="dock-custom-background" type="b"><default>false</default></key>
     <key name="dock-background-color" type="s"><default>'#ff101010'</default></key>
     <key name="dock-bottom-padding" type="d"><default>1.0</default><range min="0.1" max="1.6"/></key>
     <key name="drawer-layout" type="i"><default>0</default><summary>0 vertical, 1 horizontal (paged), 2 vertical categories, 3 horizontal tabs</summary></key>
-    <key name="drawer-grid-columns" type="i"><default>5</default><range min="2" max="16"/></key>
+    <key name="drawer-grid-columns" type="i"><default>4</default><range min="2" max="16"/></key>
     <key name="drawer-sort-mode" type="i"><default>0</default><summary>0 A-Z, 1 Z-A, 2 most used, 4 last installed (3 is reserved and sorts A-Z)</summary></key>
     <key name="drawer-icon-scale" type="d"><default>1.0</default><range min="0.5" max="2.0"/></key>
     <key name="drawer-label-scale" type="d"><default>1.0</default><range min="0.3" max="1.8"/></key>
