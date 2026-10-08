@@ -92,7 +92,8 @@ class LockScreen extends St.Widget {
 
         const mm = global.backend.get_monitor_manager();
         this._psId = mm.connect('power-save-mode-changed', () => {
-            if (mm.power_save_mode !== 0) { this._stopTimer(); this._onScreenOff(); }   // a fading veil stays until the next wake else { this._update(); this._arm(); }
+            // going dark: a fading veil stays until the next wake
+            if (mm.power_save_mode !== 0) { this._onScreenOff(); this._stopTimer(); } else { this._update(); this._armLit(); }
         });
         // The shell's own blank (power key, idle, our timeout) brings the lock up. Mutter's power-save signal is
         // not enough: it does not always fire on the way down, and power_save_mode can still read 0 inside it.
@@ -100,11 +101,19 @@ class LockScreen extends St.Widget {
         if (pm?._turnOffScreen) {
             const proto = Object.getPrototypeOf(pm);
             const orig = proto.__neoOrigTurnOff ??= proto._turnOffScreen;
+            const origOn = proto.__neoOrigTurnOn ??= proto._turnOnScreen;
             const lock = this;
             this._pm = pm;
+            // going dark: the lock comes up, but its timeout must not run on a dark panel
             pm._turnOffScreen = async function (...args) {
                 const r = await orig.apply(this, args);
-                if (!lock._destroyed) { lock._stopTimer(); lock._onScreenOff(); }
+                if (!lock._destroyed) { lock._onScreenOff(); lock._stopTimer(); }
+                return r;
+            };
+            // lit again (power key, double tap): the 15 s start now, on the shell's own wake, not on Mutter's signal
+            if (origOn) pm._turnOnScreen = function (...args) {
+                const r = origOn.apply(this, args);
+                if (!lock._destroyed) lock._armLit();
                 return r;
             };
         }
@@ -112,7 +121,7 @@ class LockScreen extends St.Widget {
         this.connect('captured-event', (_a, ev) => {
             const t = ev.type();
             if (t === Clutter.EventType.TOUCH_BEGIN || t === Clutter.EventType.TOUCH_UPDATE || t === Clutter.EventType.BUTTON_PRESS ||
-                t === Clutter.EventType.MOTION || t === Clutter.EventType.KEY_PRESS) this._arm();
+                t === Clutter.EventType.MOTION || t === Clutter.EventType.KEY_PRESS) this._armLit();
             return Clutter.EVENT_PROPAGATE;
         });
         this._focusId = global.display.connect('window-demands-attention', () => this.dismiss(true));
@@ -140,7 +149,7 @@ class LockScreen extends St.Widget {
     _onDestroy() {
         this._destroyed = true;
         this._disarm();
-        if (this._pm) { delete this._pm._turnOffScreen; this._pm = null; }   // back to the prototype's own
+        if (this._pm) { delete this._pm._turnOffScreen; delete this._pm._turnOnScreen; this._pm = null; }   // back to the prototype's own
         if (this._monId) { Main.layoutManager.disconnect(this._monId); this._monId = 0; }
         const mm = global.backend.get_monitor_manager();
         if (this._psId) mm.disconnect(this._psId);
@@ -154,19 +163,6 @@ class LockScreen extends St.Widget {
 
     /** No lock while a call runs: the call screen owns the panel (proximity off/on) and must stay usable. */
     _inCall() { return !!this.home.callProximity?.active; }
-
-    /** (Re)start the timeout that turns the panel off while the lock screen shows on a lit panel. */
-    _arm() {
-        this._disarm();
-        if (!this.visible || this._inCall() || global.backend.get_monitor_manager().power_save_mode !== 0) return;
-        this._timeoutId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, LOCK_TIMEOUT_S, () => {
-            this._timeoutId = 0;
-            if (!this.visible || this._inCall()) return GLib.SOURCE_REMOVE;
-            this.log(`lock: ${LOCK_TIMEOUT_S} s untouched, fading out`);
-            this._fadeOut();
-            return GLib.SOURCE_REMOVE;
-        });
-    }
 
     /** A black veil over the whole stage eases in; at full black the panel is turned off. */
     _fadeOut() {
@@ -200,6 +196,20 @@ class LockScreen extends St.Widget {
 
     _stopTimer() { if (this._timeoutId) { GLib.source_remove(this._timeoutId); this._timeoutId = 0; } }
 
+    /** The panel was just lit: start the timeout without trusting Mutter's power_save_mode. */
+    _armLit() {
+        this._stopTimer();
+        this._dropFade();             // a veil left from the last fade goes as soon as the panel is lit
+        if (!this.visible || this._inCall()) return;
+        this._timeoutId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, LOCK_TIMEOUT_S, () => {
+            this._timeoutId = 0;
+            if (!this.visible || this._inCall()) return GLib.SOURCE_REMOVE;
+            this.log(`lock: ${LOCK_TIMEOUT_S} s untouched, fading out`);
+            this._fadeOut();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
     _disarm() { this._stopTimer(); this._dropFade(); }
 
     _onScreenOff() {
@@ -222,7 +232,6 @@ class LockScreen extends St.Widget {
         this._update();
         this.show();
         if (!this._grab) this._grab = Main.pushModal(this, {actionMode: Shell.ActionMode.LOCK_SCREEN});
-        this._arm();
         this.log('lock: shown');
     }
 
