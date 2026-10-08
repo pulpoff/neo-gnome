@@ -327,8 +327,9 @@ class Drawer extends St.Widget {
         const ov = Main.overview._singleFingerOverviewGesture;
         if (ov) { const want = p <= 0.5 && !Main.wm.workspaceTracker?.zeroOpenWindows; if (ov.enabled !== want) ov.enabled = want; }
         this.translation_y = (1 - p) * H;
-        // scrim/content fade: manual = clamp(linear, .4, .8); atomic = clamp(map(.2→1), .33, .83) ≈ eased
-        const fade = atomic ? Math.max(0, Math.min(1, (p - 0.333) / 0.5)) : Math.max(0, Math.min(1, (p - 0.4) / 0.4));
+        // The icons ride on the sheet and fade in over the whole swipe, the home's fade-out mirrored (Launcher3 fades
+        // them in over .4-.8, which left the lower half of a rising sheet empty until they appeared)
+        const fade = p;
         this._content.opacity = Math.round(255 * fade);
         this.opacity = Math.round(255 * Math.max(0, Math.min(1, atomic ? (p - 0.264) / 0.57 : (p - 0.117) / 0.283)));
         // workspace + hotseat: no scaling, a fade that follows the sheet
