@@ -24,7 +24,7 @@ POCO X3 NFC.
 
 ## Features
 
-**Home screen** — 5×5 pages (2–8 configurable), dock with up to 16 icons, page dots, Launcher3's
+**Home screen** — 4 icons per row by default (2–8 configurable), dock with up to 16 icons, page dots, Launcher3's
 page swipe/fling/overscroll physics, wallpaper parallax, default layout seeded from your favourites,
 light/dark/black themes, notification dots and counts from the message tray.
 
@@ -32,9 +32,12 @@ light/dark/black themes, notification dots and counts from the message tray.
 App info, Uninstall), empty-space popup (Wallpaper & style, Edit Home Screen, Set as Home Screen,
 Apps list, Home settings). Drag to reorder, make folders by dropping one icon on another, dock
 drop (swaps when the dock is full), Remove bar, spring-loaded pages, page turn at the edge,
-drawer → home and folder → home drags. Haptics through `fbcli`.
+drawer → home and folder → home drags. Haptics through `fbcli`. App info opens the app in
+the store it was installed from; Uninstall removes it directly.
 
-**App drawer** — swipe up from the home (the sheet follows the finger, 60 % commit), search with
+**App drawer** — swipe up from the home (the sheet follows the finger, 60 % commit; the home
+fades out over the whole swipe and the drawer's icons fade in with it), optional search bar (off by
+default) with
 prefix/word/fuzzy matching and a web fallback with a choice of engines, Neo's dark sheet with a
 fast-scroll thumb (drag it for the letter bubble), vertical and paged layouts, A→Z / Z→A / most
 used / by colour / last installed sorting, a suggestions row, hidden apps.
@@ -60,10 +63,30 @@ over the dimmed wallpaper; slide between tasks, tap to return, swipe up to close
 auto-rotation controls plus actions (wallpaper, home settings, volume, device settings, manage
 apps, all apps, sleep, audio player); pick and order them under Gestures › Dash.
 
-**Settings** — the usual Extensions preferences window: Home screen, Dock, Drawer (incl. hidden
-apps), Search (engine picker), Gestures and Dash, Theme (icon pack, icon shape, treatments,
-notification dots), Backups (settings + layout as JSON), and a Developer group with debug logging
-and a restart.
+**Lock screen and screen timeout** — the lock screen turns the screen off after 15 s, and the
+home or an app after 2 min idle; both fade out over 1 s first. The power button locks and wakes.
+
+**Control Center and shade** — Neo's own Control Center (Wi-Fi, Bluetooth, toggles, brightness and
+volume sliders) as a MIUI-style shade, or GNOME's own quick settings (Theme › Notifications shade).
+
+**Power menu** — Restart shows the boot animation with "Restarting" until the phone goes down.
+
+**Apps opened from anywhere come forward** — on gnome-shell-mobile the home is the overview, and an
+app opened without going through it (GNOME's quick settings, a notification, another app) used to
+open and take the focus underneath it. A new focused window, a running app activated through the
+shell, or a window asking for attention right after a launch is now brought forward, once.
+
+**Notification sound and vibration** — GNOME plays only a sound an app attaches to its notification,
+and next to none do. The launcher gives every app's new notification feedbackd's notification
+feedback: sound and vibration, vibration only or nothing, in one of four vibration patterns (Short,
+Double, Triple, Long) at an adjustable strength. Silent in Do Not Disturb, for apps whose sound is
+off, and while that app is in front.
+
+**Settings** — the Extensions preferences window, styled after One UI settings (big touch rows, the
+title in the header): Home screen, Dock, App drawer (incl. hidden apps), Search (engine picker),
+Gestures and Dash, Sound and vibration (notification feedback, vibration pattern and strength, Try
+it), Theme and icons (theme, icon pack, icon shape with previews, notifications shade), Backups
+(settings + layout as JSON), and a Developer group with debug logging and a restart.
 
 ## Install
 

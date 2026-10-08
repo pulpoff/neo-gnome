@@ -151,7 +151,7 @@ export default class NeoLauncherPrefs extends ExtensionPreferences {
          * `pairs` = [[value, label]], get/set read and write the setting.
          */
         const choiceRow = (g, key, title, pairs, get, set, preview = null) => {
-            if (!has(key)) return;
+            if (key && !has(key)) return;
             const r = new Adw.ActionRow({title, activatable: true}); r.add_css_class('oneui-value');
             const label = () => pairs.find(p => p[0] === get())?.[1] ?? String(get());
             let pv = null;
@@ -159,7 +159,7 @@ export default class NeoLauncherPrefs extends ExtensionPreferences {
                 r.subtitle = label();
                 if (preview) { if (pv) r.remove(pv); pv = preview(get()); r.add_suffix(pv); }
             };
-            sync(); follow(key, sync);
+            sync(); if (key) follow(key, sync);
             r.connect('activated', () => subpage(title, p => {
                 const cg = group(p);
                 let first = null;
@@ -178,8 +178,8 @@ export default class NeoLauncherPrefs extends ExtensionPreferences {
         const choice = (g, key, title, pairs, preview = null) => choiceRow(g, key, title, pairs, () => s.get_string(key), v => s.set_string(key, v), preview);
         const choiceInt = (g, key, title, pairs) => choiceRow(g, key, title, pairs, () => s.get_int(key), v => s.set_int(key, v));
         /** A slider under its title, the value at the right of the title. */
-        const slider = (g, key, title, lo, hi, step = 0.05, fmt = v => `${Math.round(v * 100)} %`) => {
-            if (!has(key)) return;
+        const slider = (g, key, title, lo, hi, step = 0.05, fmt = v => `${Math.round(v * 100)} %`, src = s) => {
+            if (!src.settings_schema.has_key(key)) return;
             const row = new Adw.PreferencesRow({activatable: false}); row.add_css_class('oneui-slider');
             const box = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, margin_top: 10, margin_start: 14, margin_end: 14});
             const head = new Gtk.Box({spacing: 8});
@@ -188,7 +188,7 @@ export default class NeoLauncherPrefs extends ExtensionPreferences {
             head.append(t); head.append(v); box.append(head);
             const adj = new Gtk.Adjustment({lower: lo, upper: hi, step_increment: step});
             const sc = new Gtk.Scale({orientation: Gtk.Orientation.HORIZONTAL, adjustment: adj, draw_value: false, hexpand: true});
-            s.bind(key, adj, 'value', Gio.SettingsBindFlags.DEFAULT);
+            src.bind(key, adj, 'value', Gio.SettingsBindFlags.DEFAULT);
             const upd = () => { v.label = fmt(adj.value); }; adj.connect('value-changed', upd); upd();
             box.append(sc); row.set_child(box); g.add(row);
         };
@@ -302,6 +302,59 @@ export default class NeoLauncherPrefs extends ExtensionPreferences {
             g = group(p, 'Notifications');
             sw(g, 'notification-dots', 'Notification dots'); sw(g, 'notification-count', 'Notification count');
         };
+        /** feedbackd (org.sigxcpu.feedbackd) plays the phone's sounds and vibration; the launcher's notifications go through it. */
+        const feedback = (() => {
+            const src = Gio.SettingsSchemaSource.get_default()?.lookup('org.sigxcpu.feedbackd', true);
+            return src ? new Gio.Settings({settings_schema: src}) : null;
+        })();
+        // feedbackd over D-Bus: the prefs process had no reliable way to run fbcli and wait for it
+        const buzz = event => {
+            Gio.DBus.session.call('org.sigxcpu.Feedback', '/org/sigxcpu/Feedback', 'org.sigxcpu.Feedback', 'TriggerFeedback',
+                new GLib.Variant('(ssa{sv}i)', ['neolauncher@yesman.de', event, {}, -1]), null, Gio.DBusCallFlags.NONE, -1, null,
+                (c, r) => { try { c.call_finish(r); } catch (e) { console.warn(`[neolauncher] feedback: ${e.message}`); } });
+        };
+        /*
+         * Vibration patterns: a feedbackd theme of our own ('neo', on top of the device's) that replaces the
+         * notification buzz (message-new-instant and notification-new-generic) with the chosen pattern.
+         * Gaps are at least 180 ms: the motor rings on for ~150 ms, and shorter gaps blur two pulses into one.
+         */
+        const PATTERNS = [
+            ['short', 'Short', [1.0], [180]],
+            ['double', 'Double', [1.0, 0.0, 1.0], [120, 200, 120]],
+            ['triple', 'Triple', [1.0, 0.0, 1.0, 0.0, 1.0], [80, 180, 80, 180, 80]],
+            ['long', 'Long', [1.0], [600]],
+        ];
+        const themeFile = GLib.build_filenamev([GLib.get_user_config_dir(), 'feedbackd', 'themes', 'neo.json']);
+        const currentPattern = () => {
+            try {
+                const t = JSON.parse(new TextDecoder().decode(GLib.file_get_contents(themeFile)[1]));
+                return t['neo-pattern'] ?? 'short';
+            } catch (_) { return 'short'; }
+        };
+        const setPattern = id => {
+            const [, , magnitudes, durations] = PATTERNS.find(x => x[0] === id);
+            const fb = event => ({'event-name': event, type: 'VibraPattern', magnitudes, durations});
+            const theme = {name: 'neo', 'parent-name': 'default', 'neo-pattern': id,
+                profiles: [{name: 'quiet', feedbacks: [fb('message-new-instant'), fb('notification-new-generic')]}]};
+            GLib.mkdir_with_parents(GLib.path_get_dirname(themeFile), 0o755);
+            GLib.file_set_contents(themeFile, JSON.stringify(theme, null, 2));
+            // feedbackd reads a theme when the setting changes: step off and back on to reload the file
+            feedback.set_string('theme', 'default'); Gio.Settings.sync();
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
+                feedback.set_string('theme', 'neo'); Gio.Settings.sync();
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => { buzz('message-new-instant'); return GLib.SOURCE_REMOVE; });
+                return GLib.SOURCE_REMOVE;
+            });
+        };
+        const soundAndVibration = p => {
+            const g = group(p, 'Notifications', 'For every app; Do Not Disturb silences it');
+            choiceRow(g, null, 'When a notification arrives', [['full', 'Sound and vibration'], ['quiet', 'Vibration only'], ['silent', 'Nothing']],
+                () => feedback.get_string('profile'), v => { feedback.set_string('profile', v); buzz('message-new-instant'); });
+            const v = group(p, 'Vibration');
+            choiceRow(v, null, 'Vibration pattern', PATTERNS.map(([id, label]) => [id, label]), currentPattern, setPattern);
+            slider(v, 'max-haptic-strength', 'Vibration strength', 0.1, 1, 0.05, x => `${Math.round(x * 100)} %`, feedback);
+            action(v, 'Try it', 'A notification at this pattern and strength', 'media-playback-start-symbolic', () => buzz('message-new-instant'));
+        };
         const backups = p => {
             let g = group(p, 'Backups', 'Settings and the home screen layout as a JSON file');
             action(g, 'Create backup', 'Save a .neobackup.json file', 'document-save-symbolic', () => {
@@ -344,6 +397,7 @@ export default class NeoLauncherPrefs extends ExtensionPreferences {
         category(g, 'Search', ['Search bar', 'Search engine'], 'edit-find-symbolic', '#ff8f1f', search);
         category(g, 'Gestures', ['Back', 'Swipes', 'Dash'], 'input-touchpad-symbolic', '#7c5cff', gestures);
         g = group(start);
+        if (feedback) category(g, 'Sound and vibration', ['Notifications', 'Vibration strength'], 'audio-volume-high-symbolic', '#f2a20c', soundAndVibration);
         category(g, 'Theme and icons', ['Theme', 'Icon pack', 'Icon shape', 'Shade'], 'preferences-color-symbolic', '#e2557a', theme);
         category(g, 'Backup and developer', ['Backups', 'Debug logging', 'Restart'], 'document-save-symbolic', '#8e8e93', backups);
         win.add(start);

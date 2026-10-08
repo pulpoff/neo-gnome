@@ -3,6 +3,7 @@
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
+import Meta from 'gi://Meta';
 import Gio from 'gi://Gio';
 import St from 'gi://St';
 import Shell from 'gi://Shell';
@@ -20,7 +21,7 @@ const {FolderView} = await import(`${here}/folder.js?gen=${gen}`);
 const {showIconPopup, showOptionsPopup} = await import(`${here}/popup.js?gen=${gen}`);
 const {Recents} = await import(`${here}/recents.js?gen=${gen}`);
 const {DragController, haptic} = await import(`${here}/drag.js?gen=${gen}`);
-const {NotificationDots} = await import(`${here}/notifications.js?gen=${gen}`);
+const {NotificationDots, NotificationSounds} = await import(`${here}/notifications.js?gen=${gen}`);
 const {BackGesture} = await import(`${here}/backgesture.js?gen=${gen}`);
 const {Dash} = await import(`${here}/dash.js?gen=${gen}`);
 const {OskPolicy} = await import(`${here}/oskpolicy.js?gen=${gen}`);
@@ -156,7 +157,7 @@ class NeoHome extends St.Widget {
         // MIUI-style Control Center or GNOME's own quick settings, as the Theme setting says; switched live
         this._applyShade();
         this._shadeId = settings.connect('changed::shade-style', () => { if (!this._destroyed) this._applyShade(); });
-        this._hookQuickSettingsLaunchers();
+        this._bringForwardOpenedApps();
         this._setupGestures();
         // The mobile shell's bottom bar (the home handle) reserves 18 px as a strut. That reservation stays: the
         // on-screen keyboard sits above the bar and the work area is cut by the keyboard alone, so with the strut
@@ -200,6 +201,7 @@ class NeoHome extends St.Widget {
         this._setupNavZone();
         this.drag = new DragController(this);
         this.dots = new NotificationDots(() => this.updateDots());
+        try { this.notificationSounds = new NotificationSounds(); } catch (e) { console.warn(`[neolauncher] notification sounds: ${e.message}`); }
         this.updateDots();
         this._dropBar = new St.BoxLayout({style_class: 'neo-drop-bar', x_expand: true, y_expand: true, y_align: Clutter.ActorAlign.START, x_align: Clutter.ActorAlign.CENTER, visible: false, opacity: 0});
         this._dropBar.add_child(new St.Icon({icon_name: 'user-trash-symbolic', icon_size: 20, y_align: Clutter.ActorAlign.CENTER}));
@@ -252,15 +254,19 @@ class NeoHome extends St.Widget {
         for (const id of this._iconIds ?? []) this.settings.disconnect(id); this._iconIds = [];
         for (const id of this._prefIds ?? []) this.settings.disconnect(id); this._prefIds = [];
         this.dots?.destroy(); this.dots = null;
+        this.notificationSounds?.destroy(); this.notificationSounds = null;
         this.backGesture?.destroy(); this.backGesture = null;
         this.oskPolicy?.destroy(); this.oskPolicy = null;
         this.power?.destroy(); this.power = null;
         this.keyboardRotation?.destroy(); this.keyboardRotation = null;
         this.rotationAnim?.destroy(); this.rotationAnim = null;
         if (this._shadeId) { this.settings?.disconnect?.(this._shadeId); this._shadeId = 0; }
-        for (const [o, id] of this._qsLaunchIds ?? []) { try { o.disconnect(id); } catch (_) {} }
-        this._qsLaunchIds = null;
-        if (this._qsRaise) { GLib.source_remove(this._qsRaise); this._qsRaise = 0; }
+        for (const id of this._fwdIds ?? []) global.display.disconnect(id);
+        this._fwdIds = null;
+        if (this._fwdSeqId) { this._fwdTracker.disconnect(this._fwdSeqId); this._fwdSeqId = 0; }
+        if (this._fwdOrig) { Object.assign(Shell.App.prototype, this._fwdOrig); this._fwdOrig = null; }
+        for (const src of this._fwdSources ?? []) GLib.source_remove(src);
+        this._fwdSources = null;
         this.controlCenter?.destroy(); this.controlCenter = null;
         this.usbMode?.destroy(); this.usbMode = null;
         this.fullscreenGuard?.destroy(); this.fullscreenGuard = null;
@@ -512,29 +518,59 @@ class NeoHome extends St.Widget {
         this._dotActors?.forEach((d, k) => { const o = k === i ? 255 : 128; if (d.opacity !== o) d.ease({opacity: o, duration: 150, mode: Clutter.AnimationMode.EASE_OUT_QUAD}); });   // PageIndicatorDots: a plain fade (an overshooting ease blinked)
     }
     /**
-     * GNOME's own quick settings (the 'Default' shade): its Settings button and the battery (power settings) start
-     * GNOME Settings while the home is showing; the window opened and took the focus but stayed under the home,
-     * so the buttons seemed dead. After either is pressed, the Settings window is raised once it exists.
+     * The home is the overview, and anything that opens an app without going through the home (GNOME's quick
+     * settings, a notification, another app, a terminal) left the app open and focused under it, so it seemed
+     * dead. Each case is brought forward once, with no rules on focus or stacking, so nothing can loop:
+     *  - a new window that has the focus once it shows, i.e. one the user started (an app restoring itself in
+     *    the background gets no focus and stays put);
+     *  - an app that is already running and is activated through Shell.App (GNOME's own launchers do that and
+     *    then hide the overview themselves; the mobile shell left that out);
+     *  - a running window that asks for attention right after a launch: GNOME denied it the focus, and showed
+     *    "… is ready" instead. Attention on its own (a chat's new-message hint) does not take the screen.
      */
-    _hookQuickSettingsLaunchers() {
-        const box = Main.panel.statusArea?.quickSettings?._system?.quickSettingsItems?.[0]?.get_first_child?.();
-        if (!box) return;
-        this._qsLaunchIds = [];
-        for (const c of box.get_children()) {
-            if (c.constructor.name !== 'SettingsItem' && c.constructor.name !== 'PowerToggle') continue;
-            this._qsLaunchIds.push([c, c.connect('clicked', () => this._raiseWhenUp('org.gnome.Settings'))]);
+    _bringForwardOpenedApps() {
+        this._fwdIds = [
+            global.display.connect('window-created', (d, w) => this._forwardWhenShown(w)),
+            global.display.connect('window-demands-attention', (d, w) => {
+                if (GLib.get_monotonic_time() - (this._lastLaunch ?? 0) < 10 * 1e6) this._forwardSoon(w, false);
+            }),
+        ];
+        this._fwdTracker = Shell.WindowTracker.get_default();
+        this._fwdSeqId = this._fwdTracker.connect('startup-sequence-changed', () => { this._lastLaunch = GLib.get_monotonic_time(); });
+        const proto = Shell.App.prototype, self = this;
+        this._fwdOrig = {activate: proto.activate, activate_full: proto.activate_full};
+        for (const name of ['activate', 'activate_full']) {
+            const orig = proto[name];
+            proto[name] = function (...args) {
+                const running = this.state === Shell.AppState.RUNNING;
+                self._lastLaunch = GLib.get_monotonic_time();
+                const r = orig.apply(this, args);
+                if (running) self._forwardSoon(this.get_windows()[0], false);
+                return r;
+            };
         }
     }
-    _raiseWhenUp(wmClass) {
-        if (this._qsRaise) GLib.source_remove(this._qsRaise);
-        let tries = 80;
-        this._qsRaise = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
-            const w = global.display.get_tab_list(0, null).find(x => x.get_wm_class() === wmClass);
-            if (!w && --tries > 0) return GLib.SOURCE_CONTINUE;
-            this._qsRaise = 0;
-            if (w) { Main.overview.hide(); Main.activateWindow(w); }
+    _forwardWhenShown(w) {
+        if (!w || w.get_window_type() !== Meta.WindowType.NORMAL || w.is_skip_taskbar() || w.get_transient_for()) return;
+        const go = () => this._forwardSoon(w, true);
+        if (w.get_compositor_private()?.visible && w.showing_on_its_workspace?.()) { go(); return; }
+        const id = w.connect('shown', () => { w.disconnect(id); go(); });
+    }
+    _forwardSoon(w, needFocus) {
+        if (!w) return;
+        this._fwdPending ??= new Set();
+        if (this._fwdPending.has(w)) return;
+        this._fwdPending.add(w);
+        const src = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._fwdSources?.delete(src);
+            this._fwdPending.delete(w);
+            if (!Main.overview.visible || Main.sessionMode.isLocked || this.lockScreen?.visible) return GLib.SOURCE_REMOVE;
+            if (!w.get_workspace() || w.minimized && needFocus) return GLib.SOURCE_REMOVE;
+            if (needFocus && global.display.focus_window !== w) return GLib.SOURCE_REMOVE;
+            Main.activateWindow(w);
             return GLib.SOURCE_REMOVE;
         });
+        (this._fwdSources ??= new Set()).add(src);
     }
 
     /** The shade: the launcher's Control Center for 'miui', GNOME's quick settings untouched for 'default'. */
