@@ -248,11 +248,17 @@ export const Recents = GObject.registerClass({
         this._showArmPill(false);
         const result = this._decide(target, fromHome);
         this._setMix(1, result !== 1);   // into the list: finish the fade-in; home or app: nothing to fade
-        if (result === 2) this._homeButton();
+        // Android: from an app the home button lands on the launcher where you left it; only pressed on the
+        // launcher itself does it go back to the home page
+        if (result === 2 && fromHome) this._homeButton();
         return result;
     }
-    /** The home button also returns the launcher to its first page, as on Android. */
-    _homeButton() { if (this.home.currentPage !== 0) this.home.snapToPage?.(0); }
+    /** The home button pressed on the launcher returns it to the home page (the default page), as on Android. */
+    _homeButton() {
+        const s = this.home.settings, n = this.home._pages?.length ?? 1;
+        const page = Math.max(0, Math.min(n - 1, s?.settings_schema?.has_key?.('default-page') ? s.get_int('default-page') : 0));
+        if (this.home.currentPage !== page) this.home.snapToPage?.(page);
+    }
     _decide(target, fromHome) {
         if (target === 0 || !this._tasks.length) return target === 0 ? 0 : 2;
         const s = this._samples, last = s[s.length - 1], now = GLib.get_monotonic_time() / 1000;

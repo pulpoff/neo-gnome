@@ -75,16 +75,21 @@ function launchAndLeave(home, fn, wmClass = null) {
     // The watch is home's (home._cancelLaunchWatch): cleared when the window shows up, after WATCH_S, by a newer
     // launch, or when the launcher goes away — the popup that started it is long gone by then.
     home._cancelLaunchWatch?.();
-    let id = 0, timeout = 0, raise = 0;
+    if (existing) return;
+    // Looked for every 100 ms rather than on 'window-created': a Wayland client often sets its app id (the wm class)
+    // only after the window exists, so the class test failed there and the new window stayed behind the home
+    // ('Home settings' that sometimes did nothing).
+    let poll = 0, timeout = 0;
     const cancel = () => {
-        if (id) global.display.disconnect(id); if (timeout) GLib.source_remove(timeout); if (raise) GLib.source_remove(raise);
-        id = timeout = raise = 0;
+        if (poll) GLib.source_remove(poll); if (timeout) GLib.source_remove(timeout);
+        poll = timeout = 0;
         if (home._cancelLaunchWatch === cancel) home._cancelLaunchWatch = null;
     };
-    id = global.display.connect('window-created', (d, w) => {
-        if (!(w.get_wm_class() ?? '').includes(wmClass)) return;
-        global.display.disconnect(id); id = 0; GLib.source_remove(timeout); timeout = 0;
-        raise = GLib.timeout_add(GLib.PRIORITY_DEFAULT, RAISE_MS, () => { raise = 0; cancel(); Main.activateWindow(w); return GLib.SOURCE_REMOVE; });
+    poll = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+        const w = global.display.get_tab_list(0, null).find(x => (x.get_wm_class() ?? '').includes(wmClass));
+        if (!w) return GLib.SOURCE_CONTINUE;
+        poll = 0; cancel(); Main.overview.hide(); Main.activateWindow(w);
+        return GLib.SOURCE_REMOVE;
     });
     timeout = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, WATCH_S, () => { timeout = 0; cancel(); return GLib.SOURCE_REMOVE; });
     home._cancelLaunchWatch = cancel;
