@@ -126,7 +126,22 @@ class Pill {
     constructor(slider, iconName) {
         this._slider = slider;
         this.actor = new St.Widget({style_class: 'neo-cc-pill', reactive: true, layout_manager: new Clutter.FixedLayout(), clip_to_allocation: true});
-        this._fill = new St.Widget({style_class: 'neo-cc-pill-fill'});
+        // The white fill is drawn, clipped to the pill's own rounded outline: it fills the grey shape at every
+        // value (St does not clip children to a parent's rounded corners, and a widget with its own radius showed
+        // a round end inside the pill, and a sharp sliver at the left edge near zero).
+        this._fill = new St.DrawingArea();
+        this._fill.connect('repaint', area => {
+            const cr = area.get_context(), [W, H] = area.get_surface_size(), r = H / 2;
+            cr.newSubPath();
+            cr.arc(r, r, r, Math.PI / 2, 3 * Math.PI / 2);
+            cr.arc(W - r, r, r, 3 * Math.PI / 2, Math.PI / 2);
+            cr.closePath();
+            cr.clip();
+            cr.rectangle(0, 0, Math.round(this._slider.value * W), H);
+            cr.setSourceRGBA(1, 1, 1, 0.96);
+            cr.fill();
+            cr.$dispose();
+        });
         this._icon = new St.Icon({style_class: 'neo-cc-pill-icon', icon_name: iconName});
         this.actor.add_child(this._fill); this.actor.add_child(this._icon);
         const pan = new Clutter.PanGesture({pan_axis: Clutter.PanAxis.X});
@@ -142,17 +157,11 @@ class Pill {
     _set(v) { this._slider.value = Math.max(0, Math.min(1, v)); }
     setIcon(name) { this._icon.icon_name = name; }
     setSize(w, h) {
-        this.actor.set_size(w, h); this._fill.height = h;
+        this.actor.set_size(w, h); this._fill.set_size(w, h);
         const s = Math.round(h * 0.38); this._icon.icon_size = s; this._icon.set_position(Math.round(h * 0.5), Math.round((h - s) / 2));
         this._draw();
     }
-    _draw() {
-        // the parent's rounded corners do not clip children: the fill rounds its own, the right ones only at the end
-        const W = this.actor.width, r = Math.round(this.actor.height / 2), w = Math.round(this._slider.value * W);
-        this._fill.width = w;
-        const rr = w > W - r ? r : 0;
-        this._fill.style = `border-radius: ${r}px ${rr}px ${rr}px ${r}px;`;
-    }
+    _draw() { this._fill.queue_repaint(); }
     destroy() { this._slider.disconnect(this._id); this.actor.destroy(); }
 }
 
