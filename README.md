@@ -8,6 +8,20 @@ stock app grid, without patching the shell.
 
 Tested on a Poco X3 NFC (postmarketOS edge, gnome-shell-mobile 48, 360×800 dp at 120 Hz).
 
+<p>
+<img src="screenshots/home.png" width="200" alt="Home screen">
+<img src="screenshots/app-drawer.png" width="200" alt="App drawer">
+<img src="screenshots/control-center.png" width="200" alt="Control Center">
+</p>
+<p>
+<img src="screenshots/recents.png" width="200" alt="Recent apps">
+<img src="screenshots/notifications.png" width="200" alt="Notifications">
+<img src="screenshots/lockscreen.png" width="200" alt="Lock screen">
+</p>
+
+Home screen, app drawer, Control Center, recent apps, notifications and lock screen on a
+POCO X3 NFC.
+
 ## Features
 
 **Home screen** — 5×5 pages (2–8 configurable), dock with up to 16 icons, page dots, Launcher3's
