@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="neolauncher">
+  <schema id="org.gnome.shell.extensions.neolauncher" path="/org/gnome/shell/extensions/neolauncher/">
+    <key name="debug-logging" type="b"><default>false</default><summary>Verbose journal logging</summary></key>
+    <key name="hide-search-entry" type="b"><default>true</default><summary>Hide the stock overview search entry</summary></key>
+    <!-- persisted layout: JSON {version, pages:[[{type:'app'|'folder', id, col,row, folder:{name, items:[ids]}}]], dock:[...], hidden:[ids], folders:{...}} -->
+    <key name="layout" type="s"><default>''</default><summary>Home screen layout (JSON)</summary></key>
+    <key name="layout-landscape" type="s"><default>''</default><summary>landscape arrangement of the home screen (JSON with its grid dims); shares membership, folders and dock with layout</summary></key>
+    <key name="default-page" type="i"><default>0</default></key>
+    <!-- Neo Launcher preferences (names follow NeoPrefs; defaults from NEO-SPEC §1.9) -->
+    <key name="desktop-grid-rows" type="i"><default>5</default><range min="3" max="8"/></key>
+    <key name="desktop-grid-columns" type="i"><default>5</default><range min="3" max="8"/></key>
+    <key name="desktop-icon-scale" type="d"><default>1.0</default><range min="0.5" max="2.0"/></key>
+    <key name="desktop-label-scale" type="d"><default>1.0</default><range min="0.5" max="2.0"/></key>
+    <key name="desktop-hide-app-labels" type="b"><default>false</default></key>
+    <key name="desktop-multiline-label" type="b"><default>false</default></key>
+    <key name="desktop-lock" type="b"><default>false</default></key>
+    <key name="desktop-cycle-scrolling" type="b"><default>false</default></key>
+    <key name="desktop-icon-add-installed" type="b"><default>true</default></key>
+    <key name="desktop-allow-empty-pages" type="b"><default>false</default></key>
+    <key name="desktop-folder-columns" type="i"><default>3</default><range min="2" max="5"/></key>
+    <key name="desktop-folder-rows" type="i"><default>3</default><range min="2" max="5"/></key>
+    <key name="dock-enabled" type="b"><default>true</default></key>
+    <key name="dock-num-icons" type="i"><default>5</default><range min="2" max="16"/></key>
+    <key name="dock-custom-background" type="b"><default>false</default></key>
+    <key name="dock-background-color" type="s"><default>'#ff101010'</default></key>
+    <key name="dock-bottom-padding" type="d"><default>1.0</default><range min="0.1" max="1.6"/></key>
+    <key name="drawer-layout" type="i"><default>0</default><summary>0 vertical, 1 horizontal (paged), 2 vertical categories, 3 horizontal tabs</summary></key>
+    <key name="drawer-grid-columns" type="i"><default>5</default><range min="2" max="16"/></key>
+    <key name="drawer-sort-mode" type="i"><default>0</default><summary>0 A-Z, 1 Z-A, 2 most used, 4 last installed (3 is reserved and sorts A-Z)</summary></key>
+    <key name="drawer-icon-scale" type="d"><default>1.0</default><range min="0.5" max="2.0"/></key>
+    <key name="drawer-label-scale" type="d"><default>1.0</default><range min="0.3" max="1.8"/></key>
+    <key name="drawer-hide-labels" type="b"><default>false</default></key>
+    <key name="drawer-multiline-label" type="b"><default>false</default></key>
+    <key name="drawer-app-suggestions" type="b"><default>false</default></key>
+    <key name="drawer-hidden-apps" type="as"><default>[]</default></key>
+    <key name="drawer-custom-background" type="b"><default>false</default></key>
+    <key name="drawer-background-color" type="s"><default>'#ff101010'</default></key>
+    <key name="drawer-background-opacity" type="d"><default>1.0</default><range min="0.0" max="1.0"/></key>
+    <key name="drawer-save-scroll-position" type="b"><default>false</default></key>
+    <key name="drawer-hide-scrollbar" type="b"><default>false</default></key>
+    <key name="search-drawer-enabled" type="b"><default>true</default></key>
+    <key name="search-fuzzy" type="b"><default>false</default></key>
+    <key name="search-hidden-apps" type="b"><default>false</default></key>
+    <key name="search-global" type="b"><default>true</default></key>
+    <key name="search-provider" type="s"><default>'https://duckduckgo.com/?q=%s'</default></key>
+    <key name="notification-dots" type="b"><default>true</default></key>
+    <key name="notification-count" type="b"><default>false</default></key>
+    <key name="gesture-swipe-up" type="s"><default>'open_drawer'</default></key>
+    <key name="gesture-swipe-down" type="s"><default>'open_notifications'</default></key>
+    <key name="gesture-double-tap" type="s"><default>'open_dash'</default></key>
+    <key name="gesture-long-press" type="s"><default>'options_popup'</default></key>
+    <key name="gesture-dock-swipe-up" type="s"><default>'open_drawer'</default></key>
+    <key name="gesture-pinch-in" type="s"><default>'edit_mode'</default></key>
+    <key name="gesture-pinch-out" type="s"><default>'none'</default></key>
+    <key name="dash-line-size" type="i"><default>6</default><range min="4" max="6"/><summary>Dash grid columns</summary></key>
+    <key name="dash-items" type="as"><default>['wifi', 'bluetooth', 'settings', 'volume', 'all_apps', 'edit_dash']</default><summary>Dash providers in order</summary></key>
+    <key name="power-hold-ms" type="i"><default>1500</default><range min="300" max="5000"/><summary>Hold the power button this long for the power menu</summary></key>
+    <key name="keyboard-on-tap-only" type="b"><default>true</default><summary>Show the on-screen keyboard only after a tap, not when an app focuses a field on its own</summary></key>
+    <key name="gesture-back-edges" type="b"><default>true</default><summary>Android gesture navigation: drag in from the left or right edge = back</summary></key>
+    <key name="theme-mode" type="s"><default>'system'</default><summary>system | light | dark | black</summary></key>
+    <key name="theme-accent-color" type="s"><default>''</default><summary>empty = from wallpaper</summary></key>
+    <key name="icon-shape" type="s"><default>'squircle'</default><summary>system | circle | squircle | rounded | cupertino | teardrop | cylinder | square | octagon | hexagon | diamond | egg</summary></key>
+    <key name="icon-pack" type="s"><default>'h2o'</default><summary>id of a folder under ~/.local/share/neolauncher/iconpacks, '' = the icon theme</summary></key>
+    <key name="icon-pack-wrap" type="b"><default>true</default><summary>apps the pack has no icon for get the pack's back/mask/upon (Android pack convention)</summary></key>
+    <key name="icon-legacy-treatment" type="b"><default>true</default><summary>wrap non-adaptive icons on a tinted shaped background</summary></key>
+    <key name="launch-counts" type="s"><default>'{}'</default><summary>per-app launch counts (JSON) for the Most used sort</summary></key>
+    <key name="desktop-popup-uninstall" type="b"><default>false</default><summary>Show Uninstall in the icon popup (Neo: desktopPopup UNINSTALL, default off)</summary></key>
+    <key name="desktop-popup-customize" type="b"><default>true</default><summary>Show Customize in the icon popup</summary></key>
+  </schema>
+</schemalist>

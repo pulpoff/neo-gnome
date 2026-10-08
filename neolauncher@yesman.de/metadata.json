@@ -1,0 +1,15 @@
+{
+  "uuid": "neolauncher@yesman.de",
+  "name": "Neo Launcher",
+  "description": "Neo Launcher for GNOME Shell mobile: an Android-style home screen (pages, dock, app drawer, folders, icon packs and shapes, recents, back gesture) replacing the stock app grid.",
+  "shell-version": [
+    "48"
+  ],
+  "version": 1,
+  "version-name": "1.0.0",
+  "url": "https://github.com/pulpoff/neo-gnome",
+  "settings-schema": "org.gnome.shell.extensions.neolauncher",
+  "session-modes": [
+    "user"
+  ]
+}

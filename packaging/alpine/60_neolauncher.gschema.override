@@ -1,0 +1,5 @@
+# Installed by neolauncher-gnome-shell: the launcher is on for every user who has not
+# written their own extension list. A user can still turn it off in Extensions, and the
+# stock app grid returns the moment the extension is disabled or removed.
+[org.gnome.shell]
+enabled-extensions=['neolauncher@yesman.de']

@@ -1,0 +1,49 @@
+# Maintainer: Yesman <dev@yesman.de>
+# Neo Launcher for GNOME Shell mobile, installed system-wide and enabled for every user.
+# Build: `make apk` in the repository root (runs abuild on an Alpine/Nura/postmarketOS device),
+# or copy this directory plus the `make dist` tarball to an Alpine box and run `abuild -r`.
+pkgname=neolauncher-gnome-shell
+pkgver=1.0.0
+pkgrel=7
+pkgdesc="Neo Launcher: Android-style home screen for GNOME Shell mobile"
+url="https://github.com/pulpoff/neo-gnome"
+arch="noarch"
+license="GPL-3.0-or-later"
+depends="gnome-shell-mobile gjs"
+# feedbackd provides fbcli for haptics; the launcher works without it
+makedepends="glib-dev"
+install="$pkgname.post-install $pkgname.post-upgrade"
+options="!check"
+source="$pkgname-$pkgver.tar.gz
+	60_neolauncher.gschema.override"
+builddir="$srcdir/$pkgname-$pkgver"
+
+_uuid=neolauncher@yesman.de
+_extdir=usr/share/gnome-shell/extensions/$_uuid
+
+build() {
+	# the schema must compile before anything is shipped
+	glib-compile-schemas --strict --dry-run "$builddir/$_uuid/schemas"
+}
+
+package() {
+	cd "$builddir"
+	# The extension itself. The schemas/ directory is deliberately NOT installed inside the
+	# extension: GNOME Shell then resolves the settings schema from the system source, where
+	# the glib trigger compiles it together with every other schema.
+	install -d "$pkgdir/$_extdir"
+	cp -r "$_uuid"/extension.js "$_uuid"/prefs.js "$_uuid"/metadata.json "$_uuid"/stylesheet.css \
+	      "$_uuid"/launcher "$_uuid"/assets "$pkgdir/$_extdir/"
+	find "$pkgdir/$_extdir" -name '*.pyc' -delete
+	rm -f "$pkgdir/$_extdir/launcher/dev.js"	# developer-only (Eval/Reload over D-Bus)
+	install -Dm644 "$_uuid"/schemas/org.gnome.shell.extensions.neolauncher.gschema.xml \
+		"$pkgdir"/usr/share/glib-2.0/schemas/org.gnome.shell.extensions.neolauncher.gschema.xml
+	# enabled by default for every user who has not set their own extension list
+	install -Dm644 "$srcdir"/60_neolauncher.gschema.override \
+		"$pkgdir"/usr/share/glib-2.0/schemas/60_neolauncher.gschema.override
+	# system-wide icon pack folder (packs are imported with the shipped tool; none are bundled)
+	install -d "$pkgdir"/usr/share/neolauncher/iconpacks
+	install -Dm755 tools/import-iconpack.py "$pkgdir"/usr/share/neolauncher/import-iconpack.py
+	install -Dm644 README.md "$pkgdir"/usr/share/doc/$pkgname/README.md
+	install -Dm644 LICENSE "$pkgdir"/usr/share/licenses/$pkgname/LICENSE
+}

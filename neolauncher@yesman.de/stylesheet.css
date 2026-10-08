@@ -1,0 +1,168 @@
+/* Neo Launcher — St CSS (dp == px). Colours: Launcher3 dark theme defaults. */
+.neo-home { background-color: transparent; }
+.neo-page.spring-loaded { background-color: rgba(255,255,255,0.2); border-radius: 12px; border: 2px solid rgba(255,255,255,0.4); }
+.neo-cell { background: none; border: none; padding: 0; }
+.neo-cell:focus { box-shadow: none; }
+.neo-label { color: #ffffff; font-size: 14.4px; font-weight: normal; text-shadow: 0 0 2px rgba(0,0,0,0.5); margin-top: 5px; padding: 0 8px; }
+.neo-folder-bg { background-color: rgba(255,255,255,0.35); border-radius: 999px; }
+.neo-dot { background-color: #ffffff; border-radius: 3px; margin: 0 2px; }
+.neo-hotseat.custom-bg { background-color: #101010; border-radius: 24px 24px 0 0; box-shadow: 0 -2px 4px rgba(0,0,0,0.3); }
+.neo-hotseat-row .neo-label { visibility: hidden; height: 0; }
+/* drawer */
+.neo-drawer { background-color: #212121; }   /* Neo on Android: allAppsBackground #212121 */
+.neo-drawer-content { padding: 0 16px; }   /* top/bottom space is padding inside the list (drawer.js _sizeList): it scrolls to the screen edges */
+.neo-search-bin { padding: 36px 12px 2px 12px; }
+.neo-search { background-color: #424242; border-radius: 200px; border: 0.5px solid rgba(255,255,255,0.12); height: 48px; padding: 0 16px; color: #ffffff; font-size: 16px; caret-color: #ffffff; }
+.neo-search StLabel.hint-text { color: rgba(255,255,255,0.6); }
+.neo-drawer-scroll { margin-top: 0; }
+.neo-drawer-scroll StScrollBar, .neo-drawer-scroll StScrollBar StButton#vhandle, .neo-drawer-scroll StScrollBar StBin#trough { width: 0px; min-width: 0px; padding: 0; margin: 0; background: none; border: none; }   /* the A–Z rail is the only scroll indicator */
+.neo-drawer-row .neo-label { text-shadow: none; margin-top: 8px; }
+.neo-drawer-divider { height: 2px; width: 128px; background-color: rgba(255,255,255,0.2); margin: 8px 0; }
+/* folder */
+.neo-folder-scrim { background-color: rgba(0,0,0,0.35); }
+.neo-folder { background-color: #1F2020; border-radius: 12px; }
+.neo-folder-footer { padding: 0 20px; }
+.neo-folder-name { background: none; border: none; color: #ffffff; font-size: 16px; font-weight: bold; caret-color: #ffffff; }
+.neo-folder .neo-label { text-shadow: none; }
+/* popups (PopupContainerWithArrow) */
+.neo-popup { background-color: #3C4043; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); padding: 4px 0; }
+.neo-popup-item { background: none; border: none; border-radius: 12px; color: #ffffff; font-size: 14px; margin: 0 4px; }
+.neo-popup-item:hover, .neo-popup-item:active, .neo-popup-item:focus { background-color: rgba(255,255,255,0.12); }
+/* drag & drop */
+.neo-drag-view { box-shadow: 0 4px 10px rgba(0,0,0,0.45); border-radius: 16px; }
+.neo-drop-bar { height: 56px; padding: 0 24px; spacing: 10px; color: #ffffff; font-size: 14px; font-weight: 500; background-color: rgba(0,0,0,0.35); border-radius: 0 0 20px 20px; margin-top: 32px; }
+.neo-drop-bar.active { background-color: #D93025; }
+.neo-drop-highlight { background-color: rgba(255,255,255,0.25); border-radius: 16px; border: 1.5px solid rgba(255,255,255,0.5); }
+/* recents (Android task switcher) */
+.neo-recents-scrim { background-color: rgba(0,0,0,0.45); }
+.neo-task { background-color: #202124; }
+.neo-task-chip { background-color: rgba(32,33,36,0.92); border-radius: 20px; padding: 6px 14px 6px 8px; spacing: 8px; color: #ffffff; font-size: 14px; font-weight: 500; }
+.neo-task-mem { color: rgba(255,255,255,0.6); font-size: 12px; font-weight: normal; }
+.neo-recents-button { background-color: rgba(60,64,67,0.95); color: #e8eaed; border-radius: 24px; padding: 0 24px; height: 48px; font-size: 15px; font-weight: 500; }
+.neo-recents-button:hover, .neo-recents-button:active { background-color: rgba(90,94,97,0.95); }
+.neo-recents-empty { color: rgba(255,255,255,0.85); font-size: 16px; }
+/* drawer fast scroller and search */
+.neo-fast-thumb { background-color: #448AFF; border-radius: 2px; }
+.neo-search-more { color: #8AB4F8; }
+.neo-az-bubble { background-color: #8AB4F8; color: #202124; font-size: 28px; font-weight: bold; border-radius: 28px; width: 56px; height: 56px; text-align: center; }
+/* notification dots */
+.neo-badge { background-color: #F32020; border-radius: 99px; width: 10px; height: 10px; border: 1.5px solid rgba(255,255,255,0.9); color: #ffffff; font-size: 10px; font-weight: bold; text-align: center; }
+.neo-badge.count { width: auto; height: auto; min-width: 12px; padding: 1px 5px; }
+/* themes (Neo: light / dark / black) — the dark values are the defaults above */
+.theme-light .neo-drawer { background-color: #FAFAFA; }
+.theme-light .neo-search { background-color: #FFFFFF; color: #202124; border-color: rgba(0,0,0,0.12); }
+.theme-light .neo-search StLabel.hint-text { color: rgba(0,0,0,0.5); }
+.theme-light .neo-drawer-row .neo-label { color: #202124; }
+.theme-light .neo-folder { background-color: #EFEDED; }
+.theme-light .neo-folder .neo-label, .theme-light .neo-folder-name { color: #202124; }
+.theme-black .neo-drawer { background-color: #000000; }
+.theme-black .neo-folder { background-color: #000000; }
+.theme-black .neo-popup { background-color: #101010; }
+/* customize sheet */
+.neo-customize-title { font-size: 18px; font-weight: bold; color: #ffffff; }
+.neo-customize StEntry { border-radius: 12px; }
+
+/* back gesture pill (Android's navigation arrow) */
+.neo-back-pill { background-color: rgba(32,33,36,0.85); border-radius: 22px; }
+.neo-back-arrow { color: white; icon-shadow: none; }
+
+/* Dash (dash/DashPage): bottom sheet, 24 dp corners, controls filled when on */
+.neo-dash-scrim { background-color: rgba(0,0,0,0.25); }
+.neo-dash { background-color: #262626; border-radius: 24px 24px 0 0; padding: 8px 0 16px 0; }
+.theme-light .neo-dash { background-color: #FFFFFF; }
+.theme-black .neo-dash { background-color: #212121; }
+.neo-dash-control { background-color: #323639; border-radius: 16px; border: none; box-shadow: none; padding: 0; }
+.neo-dash-control-box { padding: 0 14px; spacing: 12px; }
+.neo-dash-control StIcon, .neo-dash-action StIcon { color: #D9D9D9; }
+.neo-dash-control .neo-dash-label { color: #D9D9D9; font-size: 14px; font-weight: bold; }
+.neo-dash-control.on { background-color: #009688; }
+.neo-dash-control.on StIcon, .neo-dash-control.on .neo-dash-label { color: #FFFFFF; }
+.neo-dash-action { background-color: #323639; border-radius: 16px; border: none; box-shadow: none; padding: 0; }
+.neo-dash-control:active, .neo-dash-action:active { background-color: #45494d; }
+.theme-light .neo-dash-control, .theme-light .neo-dash-action { background-color: #E9ECEF; }
+.theme-light .neo-dash-control StIcon, .theme-light .neo-dash-action StIcon, .theme-light .neo-dash-control .neo-dash-label { color: #202124; }
+
+.neo-notif-empty { color: rgba(255,255,255,0.6); font-size: 15px; padding: 24px; }
+
+/* swipe-up lock screen (Android style) */
+.neo-lock { background-color: black; }
+.neo-lock-dim { background-color: rgba(0,0,0,0.25); }
+.neo-lock-clock { color: #bfe9f7; font-size: 84px; font-weight: 300; font-feature-settings: "tnum"; }
+.neo-lock-date { color: white; font-size: 18px; font-weight: 500; }
+.neo-lock-notif { background-color: rgba(30,40,45,0.85); border-radius: 22px; padding: 10px 14px; spacing: 12px; }
+.neo-lock-notif-icon { color: white; }
+.neo-lock-padlock { color: #bfe9f7; icon-size: 30px; }
+.neo-lock-status { color: white; font-size: 15px; }
+
+/* ---------------- Control Center (launcher/controlcenter.js): MIUI 12 layout ---------------- */
+.quick-settings.neo-cc-box {
+    background-color: transparent;     /* the tint is the backdrop's (blurred wallpaper, darkened) */
+    border-radius: 0;
+    box-shadow: none;
+    border: none;
+    padding: 0 0 24px 0;
+}
+.quick-settings.neo-cc-box.neo-cc-light { background-color: transparent; }
+.neo-cc { color: #ffffff; }
+.neo-cc-status { padding-left: 4px; }
+.neo-cc-operator { font-size: 14px; color: rgba(255, 255, 255, 0.92); }
+.neo-cc-clock-row { margin: 22px 0 20px 0; }
+.neo-cc-time { font-size: 46px; font-weight: 300; letter-spacing: -1px; color: #ffffff; }
+.neo-cc-date { font-size: 14px; color: rgba(255, 255, 255, 0.62); margin: 0 0 7px 10px; }
+.neo-cc-head-button { padding: 6px; margin-left: 12px; border-radius: 99px; color: rgba(255, 255, 255, 0.88); }
+.neo-cc-head-button StIcon { icon-size: 22px; }
+.neo-cc-head-button:active { background-color: rgba(255, 255, 255, 0.16); }
+
+.neo-cc-tiles { margin-bottom: 24px; }
+.neo-cc-tile {
+    background-color: rgba(255, 255, 255, 0.13);
+    border-radius: 22px;
+    padding: 0 0 0 16px;
+    color: #ffffff;
+    transition-duration: 160ms;
+}
+.neo-cc-light .neo-cc-tile { background-color: rgba(255, 255, 255, 0.24); }
+.neo-cc-tile:checked { background-color: #3482f6; }
+.neo-cc-tile:active { background-color: rgba(255, 255, 255, 0.22); }
+.neo-cc-tile:checked:active { background-color: #2c74e0; }
+.neo-cc-tile-icon { icon-size: 24px; margin-right: 13px; }
+.neo-cc-tile-title { font-size: 15px; font-weight: 500; }
+.neo-cc-tile-sub { font-size: 12px; color: rgba(255, 255, 255, 0.55); margin-top: 2px; }
+.neo-cc-tile:checked .neo-cc-tile-sub { color: rgba(255, 255, 255, 0.78); }
+.neo-cc-tile-corner { padding: 0 10px 10px 0; }
+.neo-cc-tile-mark { width: 11px; height: 11px; background-image: url("assets/cc-corner.svg"); background-size: contain; }
+
+.neo-cc-rounds { margin-bottom: 24px; }
+.neo-cc-round {
+    background-color: rgba(255, 255, 255, 0.13);
+    border-radius: 999px;
+    color: #ffffff;
+    transition-duration: 160ms;
+}
+.neo-cc-light .neo-cc-round { background-color: rgba(255, 255, 255, 0.24); }
+.neo-cc-round:checked { background-color: #3482f6; }
+.neo-cc-round:active { background-color: rgba(255, 255, 255, 0.24); }
+.neo-cc-round:checked:active { background-color: #2c74e0; }
+
+.neo-cc-sliders { spacing: 14px; }
+.neo-cc-pill { background-color: rgba(255, 255, 255, 0.2); border-radius: 999px; }
+.neo-cc-pill-fill { background-color: rgba(255, 255, 255, 0.96); }
+.neo-cc-pill-icon { color: #3c3c3c; }
+/* landscape: the portrait sizes in two columns; only the vertical spacing is tighter to fit 360 px */
+.neo-cc-landscape .neo-cc-clock-row { margin: 4px 0 12px 0; }
+.neo-cc-landscape .neo-cc-tiles { margin-bottom: 0; }
+.neo-cc-landscape .neo-cc-rounds { margin: 6px 0 14px 0; }
+.neo-cc-landscape .neo-cc-sliders { spacing: 10px; }
+
+/* the shell's bottom bar over apps: no strip, just the handle line (home.js) */
+.neo-clear-bottom-bar { background-color: transparent; box-shadow: none; }
+
+/* power menu (power.js showPowerDialog): Android's power card */
+.neo-power-dialog .modal-dialog-content-box { padding: 12px 8px 4px 8px; }
+.neo-power-list { spacing: 6px; min-width: 260px; }
+.neo-power-button { border-radius: 16px; padding: 14px 22px; background-color: rgba(255,255,255,0.06); }
+.neo-power-button:hover, .neo-power-button:focus { background-color: rgba(255,255,255,0.12); }
+.neo-power-button:active { background-color: rgba(255,255,255,0.2); }
+.neo-power-row { spacing: 16px; }
+.neo-power-icon { icon-size: 24px; }
+.neo-power-label { font-size: 17px; font-weight: 500; }

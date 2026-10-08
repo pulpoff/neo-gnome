@@ -1,0 +1,7 @@
+#!/bin/sh
+cat <<'MSG'
+Neo Launcher is installed system-wide and enabled for every user by default.
+GNOME Shell reads its extensions at login: log out and back in (or reboot)
+to see the new home screen. Settings live in Extensions > Neo Launcher.
+MSG
+exit 0
