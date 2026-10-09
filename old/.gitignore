@@ -1,0 +1,6 @@
+iconpacks/
+__pycache__/
+*.pyc
+/*.shell-extension.zip
+/*.tar.gz
+packaging/alpine/out/

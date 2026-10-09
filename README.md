@@ -1,190 +1,129 @@
-# Neo Launcher for GNOME Shell mobile
+# Neo Launcher for Phosh
 
-An Android-style home screen for phones running [gnome-shell-mobile](https://gitlab.gnome.org/verdre/gnome-shell-mobile)
-(GNOME 48), modelled 1:1 on [Neo Launcher](https://github.com/NeoApplications/Neo-Launcher): paged
-home screen with a dock, an app drawer that follows your finger, folders, icon packs and icon
-shapes, a task switcher, and Android gesture navigation — as a Shell extension that replaces the
-stock app grid, without patching the shell.
+An Android-style home screen for phones running [Phosh](https://gitlab.gnome.org/World/Phosh/phosh), modelled on
+[Neo Launcher](https://github.com/NeoApplications/Neo-Launcher) and Android's gesture navigation: a paged home
+screen with a dock, an app drawer that follows your finger, icon packs and shapes, a One UI-style task view, and
+back / home / recents gestures. Phosh keeps what it does well: the lock screen, notifications, quick settings, the
+power menu, calls and the on-screen keyboard. Neo only replaces the app grid.
 
-Tested on a Poco X3 NFC (postmarketOS edge, gnome-shell-mobile 48, 360×800 dp at 120 Hz).
+Tested on a POCO X3 NFC (Mobian sid + staging, Phosh 0.58, 1080×2400 at 120 Hz).
 
 <p>
 <img src="screenshots/home.png" width="200" alt="Home screen">
-<img src="screenshots/app-drawer.png" width="200" alt="App drawer">
-<img src="screenshots/control-center.png" width="200" alt="Control Center">
-</p>
-<p>
-<img src="screenshots/recents.png" width="200" alt="Recent apps">
-<img src="screenshots/notifications.png" width="200" alt="Notifications">
-<img src="screenshots/lockscreen.png" width="200" alt="Lock screen">
-</p>
-<p>
-<img src="screenshots/settings.png" width="200" alt="Settings">
-<img src="screenshots/sound-vibration.png" width="200" alt="Sound and vibration settings">
+<img src="screenshots/drawer.png" width="200" alt="App drawer">
+<img src="screenshots/recents.png" width="200" alt="Task view">
+<img src="screenshots/lockscreen.png" width="200" alt="Pattern lock screen">
 </p>
 
-Home screen, app drawer, Control Center, recent apps, notifications, lock screen, settings and the
-Sound and vibration page (notification feedback, vibration pattern and strength) on a POCO X3 NFC.
+Home screen, app drawer, task view and the pattern lock screen.
+
+The earlier GNOME Shell extension (for gnome-shell-mobile) is kept in [`old/`](old/).
 
 ## Features
 
-**Home screen** — 4 icons per row by default (2–8 configurable), dock with up to 16 icons, page dots, Launcher3's
-page swipe/fling/overscroll physics, wallpaper parallax, default layout seeded from your favourites,
-light/dark/black themes, notification dots and counts from the message tray.
+**Home screen**: pages (4×5 by default), page dots, a dock of 4, your favourites as the first layout. Touch and hold
+an icon and move it: it follows the finger, rests at a screen edge to turn the page, and drops on a cell or in the
+dock. Touch and hold and let go: *App info* and *Remove*. An app may have several icons (a home shortcut of a dock
+app); moving or removing affects the one icon you touched. Long press on empty space: *Launcher settings* and
+*Wallpaper*. The wallpaper follows GNOME's background setting (including desktop-base XML themes) as soon as it
+changes.
 
-**Long press & drag** — icon popup (app actions from the `.desktop` file, Customize, Remove/Hide,
-App info, Uninstall), empty-space popup (Wallpaper & style, Edit Home Screen, Set as Home Screen,
-Apps list, Home settings). Drag to reorder, make folders by dropping one icon on another, dock
-drop (swaps when the dock is full), Remove bar, spring-loaded pages, page turn at the edge,
-drawer → home and folder → home drags. Haptics through `fbcli`. App info opens the app in
-the store it was installed from; Uninstall removes it directly.
+**App drawer**: swipe up anywhere on the home screen. The drawer's top comes to your finger and follows it; it
+settles open or closed by distance and speed, and the drawer's icons fade in as it comes up. Touch and hold an app
+and move it: the drawer goes and a copy lands on the home screen. A search field can be switched on.
 
-**App drawer** — swipe up from the home (the sheet follows the finger, 60 % commit; the home
-fades out over the whole swipe and the drawer's icons fade in with it), optional search bar (off by
-default) with
-prefix/word/fuzzy matching and a web fallback with a choice of engines, Neo's dark sheet with a
-fast-scroll thumb (drag it for the letter bubble), vertical and paged layouts, A→Z / Z→A / most
-used / by colour / last installed sorting, a suggestions row, hidden apps.
+**Gestures**: from the bottom edge, swipe up = home, swipe up and rest = the task view. From the left or right edge,
+swipe inwards = back (an arrow pill follows the finger, as in the old Neo); in apps this sends Alt+Left.
 
-**Folders** — 2×2 preview, open/close scale animation, 3×3 grid (2–5), inline rename.
+**Task view** (One UI style): the current app shrinks into a card in the middle as the finger rests, the others
+come in beside it with their icons, names and memory use. Tap a card to switch, swipe a card up to close it,
+swipe sideways to scroll, *Close all* at the bottom, tap beside the cards or swipe up again for home.
 
-**Icon packs & shapes** — any Android icon pack can be imported from its APK or XAPK
-(`tools/import-iconpack.py`); the launcher maps GNOME apps to the pack's drawables by package
-table and by the pack's generic names. Twelve icon shapes (squircle by default). Pack icons are
-re-wrapped on their own edge colour when a shape is chosen; apps a pack does not cover get the
-pack's back/mask/upon layers (Android pack convention) or a tinted shaped background. Everything
-is rendered once with cairo and cached as PNG.
+**Launching**: a card grows from the icon to the whole screen and stays until the app's window is up, so the app
+used before never flashes up. An app that already runs is switched to.
 
-**Gestures** — swipe up (drawer), swipe down (notifications), double tap (Dash), touch
-and hold (options), dock swipe up (global search), pinch in (Edit Home Screen) / pinch out, and
-Android gesture navigation: drag in from the left or right edge to go **back** (arrow pill; closes
-folder, drawer or search on the launcher, sends Alt+Left to the focused app).
+**Icons**: icon packs (the old Neo format: `pack.json`, `gnome-map.json`, `icons/`) and shapes (circle, squircle,
+rounded square, teardrop, …), drawn one per idle tick so picking a pack never freezes the launcher.
 
-**Recents** — bottom-edge swipe: a flick goes home, a slow release shows the task list as cards
-over the dimmed wallpaper; slide between tasks, tap to return, swipe up to close, Close all.
+**Screen lock** (Mobile Settings → device page): *Swipe* (no password), *Pattern* or *PIN*. A pattern is drawn and
+confirmed as on Android and becomes the user's password: the dots joined in order as digits (1-4-7-8 is `1478`),
+set through AccountsService after the current password. The lock screen then shows a 3×3 grid instead of the
+keypad; a wrong pattern turns red.
 
-**Dash** — double tap opens Neo's bottom sheet: Wi-Fi, Bluetooth, airplane mode, location and
-auto-rotation controls plus actions (wallpaper, home settings, volume, device settings, manage
-apps, all apps, sleep, audio player); pick and order them under Gestures › Dash.
+**Screenshots**: power + volume down, as on Android; the volume popup is kept out of the picture.
 
-**Lock screen and screen timeout** — the lock screen turns the screen off after 15 s, and the
-home or an app after 2 min idle; both fade out over 1 s first. The power button locks and wakes.
+**Mobile Settings**: a device page with the launcher choice (*Phosh* / *Neo*) and the screen lock, and *About* shows
+the device name systemd-hostnamed reports (what fastfetch and GNOME Settings show).
 
-**Control Center and shade** — Neo's own Control Center (Wi-Fi, Bluetooth, toggles, brightness and
-volume sliders) as a MIUI-style shade, or GNOME's own quick settings (Theme › Notifications shade).
+## What is in here
 
-**Power menu** — Restart shows the boot animation with "Restarting" until the phone goes down.
+| Path | What |
+|------|------|
+| [`neo-launcher/`](neo-launcher/) | The launcher: GJS, GTK 4, libadwaita, gtk4-layer-shell; runs as the user service `neo-launcher.service` |
+| [`phosh/debian/patches/`](phosh/debian/patches/) | Patches for Debian's phosh 0.58.0: Neo as the home, the task view's D-Bus API, the screenshot combination, the pattern lock |
+| [`ms-plugin-surya/`](ms-plugin-surya/) | The Mobile Settings device page (launcher, screen lock, the pattern dialog) |
+| [`mobile-settings-patches/`](mobile-settings-patches/) | *About* shows the device name from systemd-hostnamed |
+| [`build-debs.sh`](build-debs.sh) | Packages it all as Debian packages |
+| [`docs/NOTES.md`](docs/NOTES.md) | Implementation notes: the traps met and why things are the way they are |
 
-**Apps opened from anywhere come forward** — on gnome-shell-mobile the home is the overview, and an
-app opened without going through it (GNOME's quick settings, a notification, another app) used to
-open and take the focus underneath it. A new focused window, a running app activated through the
-shell, or a window asking for attention right after a launch is now brought forward, once.
+The Phosh patches are numbered in the order they were made:
 
-**Notification sound and vibration** — GNOME plays only a sound an app attaches to its notification,
-and next to none do. The launcher gives every app's new notification feedbackd's notification
-feedback: sound and vibration, vibration only or nothing, in one of four vibration patterns (Short,
-Double, Triple, Long) at an adjustable strength. Silent in Do Not Disturb, for apps whose sound is
-off, and while that app is in front. The status LED breathes (fades in and out, in the kernel's LED pattern
-trigger) while the screen is off and something is unread.
+* `0100` Neo takes the home: unfolding the home (the home bar, all apps closed, login) shows Neo, and the overview
+  stays folded.
+* `0101` an app launch ends when the app's window is mapped (no 30 s splash).
+* `0102` restyled overview cards (kept for Phosh's own mode).
+* `0103` the task view's data: `de.yesman.PhoshNeo` gives Neo the windows with their thumbnails
+  (`GetWindows`, `Activate`, `Close`, `CloseAll`).
+* `0104`, `0105` power + volume down takes a screenshot; the volume popup is hidden, not destroyed.
+* `0106` the pattern lock (`de.yesman.neo lock-type = 'pattern'`).
 
-**Desktop apps fit the phone** — a window whose minimum width is wider than the screen (desktop Chromium's
-is about 500 px on a 360 px phone) is shown scaled to exactly the screen's width; touches land where it is
-drawn. A window that is only wide for the moment is asked to fit first.
+## Building and installing
 
-**Keyboard on a tap** — the on-screen keyboard rises for a tap into a text field, not because an app focused
-one while opening (Android's rule). Qt apps report their caret a moment after asking for the keyboard; the
-policy waits for it instead of holding their keyboard back.
-
-**Settings** — the Extensions preferences window, styled after One UI settings (big touch rows, the
-title in the header): Home screen, Dock, App drawer (incl. hidden apps), Search (engine picker),
-Gestures and Dash, Sound and vibration (notification feedback, vibration pattern and strength, Try
-it), Theme and icons (theme, icon pack, icon shape with previews, notifications shade), Backups
-(settings + layout as JSON), and a Developer group with debug logging and a restart.
-
-## Install
-
-### As a package (Nura, postmarketOS and other Alpine-based phones)
-
-`packaging/alpine/` holds an `APKBUILD`. The package installs the extension system-wide under
-`/usr/share/gnome-shell/extensions/`, puts the settings schema into the system schema directory
-(the glib trigger compiles it), and ships a GSettings override that turns the extension on for
-every user who has not written their own extension list. Nothing else is needed: log out and back
-in (or reboot) and the home screen is Neo. Disabling the extension in *Extensions*, or removing the
-package, brings the stock app grid back.
-
-A ready-built package is in `dist/` (`neolauncher-gnome-shell-1.0.0-r8.apk`, signed with
-`dist/pulp-6ac42643.rsa.pub`):
+On the phone (arm64), with Debian's sources enabled:
 
 ```sh
-sudo cp dist/pulp-6ac42643.rsa.pub /etc/apk/keys/
-sudo apk add dist/neolauncher-gnome-shell-1.0.0-r8.apk
-# or, without trusting the key: sudo apk add --allow-untrusted dist/neolauncher-gnome-shell-1.0.0-r8.apk
+# Phosh with the patches
+apt-get source phosh && cd phosh-0.58.0
+cp /path/to/neo-gnome/phosh/debian/patches/01*.patch debian/patches/
+cat /path/to/neo-gnome/phosh/debian/patches/series >> debian/patches/series
+dch -v 0.58.0-1+neo1 'Neo launcher.'
+DEB_BUILD_OPTIONS="nocheck parallel=6" dpkg-buildpackage -b -uc -us
+
+# Mobile Settings with the device page and the About patch
+apt-get source phosh-mobile-settings && cd phosh-mobile-settings-0.58.0
+cp -r /path/to/neo-gnome/ms-plugin-surya plugins/surya && echo "subdir('surya')" >> plugins/meson.build
+echo 'usr/lib/*/phosh-mobile-settings/plugins/libms-plugin-surya.so' >> debian/phosh-mobile-settings.install
+cp /path/to/neo-gnome/mobile-settings-patches/*.patch debian/patches/
+echo about-device-from-hostnamed.patch >> debian/patches/series
+apt-get install libcrypt-dev && dpkg-buildpackage -b -uc -us
 ```
 
-To build the package yourself you need an Alpine box or the phone itself with `alpine-sdk`, a key
-(`abuild-keygen -a -n -i`) and your user in the `abuild` group:
+Then, from a computer that reaches the phone over SSH, `./build-debs.sh OUT [PHONE]` packages the launcher
+(`neo-launcher_*_all.deb`) and fetches the arm64 packages built on the phone. Install them, hold Phosh so an
+upgrade does not bring back its own home screen (`apt-mark hold phosh phosh-common libphosh-0.45-0
+phosh-mobile-settings`), and log out and in. The launcher is chosen in Mobile Settings, or with
+`gsettings set de.yesman.neo launcher neo`.
 
-```sh
-make dist                                          # neolauncher-gnome-shell-<ver>.tar.gz
-PHONE=user@phone packaging/alpine/build-on-device.sh   # copies tarball + APKBUILD over, runs abuild -r, fetches the .apk
-```
+Runtime dependencies: `gjs`, `gir1.2-gtk-4.0`, `gir1.2-adw-1`, `libgtk4-layer-shell0`,
+`gir1.2-gtk4layershell-1.0`, `grim` (the task view's picture of the current app), `wtype` (back in apps),
+`python3` (the task view's memory figures).
 
-A copy of the extension in `~/.local/share/gnome-shell/extensions/` (what `install.sh` writes for
-development) shadows the packaged one at the next login.
+Icon packs go in `/usr/share/neo-launcher/iconpacks/` or `~/.local/share/neo-launcher/iconpacks/`.
 
-### As a plain extension
+## Settings
 
-```sh
-make pack                      # builds neolauncher@yesman.de.shell-extension.zip
-make install                   # gnome-extensions install --force … (then log out and back in)
-gnome-extensions enable neolauncher@yesman.de
-```
+Everything is in the `de.yesman.neo` schema, most of it also in *Launcher settings*:
 
-The extension targets gnome-shell-mobile 48 (`session-modes: ["user"]`). On a desktop GNOME 48 it
-loads but the mobile overview it replaces is not there, so it does nothing useful.
-
-### Icon packs
-
-Icon packs are folders under `~/.local/share/neolauncher/iconpacks/<id>/`, produced from an
-Android icon pack:
-
-```sh
-python3 -m venv venv && venv/bin/pip install pyaxmlparser
-venv/bin/python tools/import-iconpack.py ~/Downloads/some-icon-pack.apk h2o --title "H2O"
-rsync -a iconpacks/ ~/.local/share/neolauncher/iconpacks/
-```
-
-The importer prints which GNOME apps it could map (edit `GNOME_TO_ANDROID` in the script to add
-yours). Pick the pack under Theme › Icon pack. OnePlus O2, H2O and MIU 11 are known to import
-cleanly; packs that ship as a stripped base APK (no `appfilter.xml`) cannot be used.
-
-## Development
-
-```sh
-make check                     # parse every module with node
-./install.sh                   # rsync to the phone and hot-reload over D-Bus (edit PHONE=)
-./tools-eval.sh 'return home.currentPage'   # run JS inside the shell (ext, home, Main in scope)
-```
-
-`extension.js` is loaded once per login; the launcher itself lives in `launcher/*.js` and is
-re-imported through a cache-busting `?gen=N` on every reload, so no logout is needed while
-developing. `NEO-SPEC.md` is the behavioural spec distilled from Neo Launcher's sources
-(metrics, animations, settings tree) and `SHELL-RESEARCH.md` documents how the mobile shell's
-overview is taken over.
-
-## Status
-
-See `NEO-SPEC.md` §1 for the full inventory. Not yet ported: home-screen widgets and the smartspace
-row (no AppWidget on Linux), drawer categories and tabs (fall back to the vertical list), folder
-cover mode and paging beyond 9 items, search suggestions, per-app icon overrides.
-
-## Quiet U-Boot for the POCO X3 NFC
-
-`u-boot/` holds the boot loader this launcher was developed on: a quiet U-Boot that leaves the
-panel dark and draws a small gear under the POCO logo. It includes the flashable image, the
-original image for rollback, and the patch and config to build it. See `u-boot/README.md`.
+| Key | Default | |
+|-----|---------|-|
+| `launcher` | `'neo'` | `'neo'` or `'phosh'` (Phosh's own app grid) |
+| `desktop-grid-columns`, `desktop-grid-rows` | 4, 5 | the home grid |
+| `dock-num-icons` | 4 | |
+| `drawer-grid-columns` | 4 | |
+| `search-drawer-enabled` | false | the drawer's search field |
+| `icon-pack`, `icon-shape` | `''`, `'system'` | |
+| `lock-type` | `'pin'` | `'pin'`, `'pattern'` or `'swipe'` (set it from Mobile Settings: a pattern has to become the password) |
 
 ## License
 
-GPL-3.0, like Neo Launcher. This is an independent re-implementation of Neo Launcher's design for
-GNOME Shell; it contains no code from the Android project.
+GPL-3.0-or-later, see [LICENSE](LICENSE).

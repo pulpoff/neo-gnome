@@ -1,0 +1,64 @@
+Description: About: the device's name from systemd-hostnamed
+ gmobile's display panel name is only right when the device tree compatibles
+ are the device's own. The POCO X3 NFC borrows the Redmi Note 9 Pro's panel
+ data (GMOBILE_DT_COMPATIBLES) for its cutout and was shown under that name.
+ The vendor and model systemd-hostnamed reads from the device tree (what
+ fastfetch and GNOME Settings show) come first; gmobile stays the fallback.
+Author: pulpoff <pashkovsky@gmail.com>
+Forwarded: no
+---
+--- a/src/ms-about-panel.c	2026-10-10 01:15:21.197166667 +0200
++++ b/src/ms-about-panel.c	2026-10-10 01:15:21.233385042 +0200
+@@ -59,14 +59,51 @@
+ }
+ 
+ 
++/*
++ * The device's name as systemd-hostnamed has it (vendor and model, from the device tree or DMI): what fastfetch
++ * and GNOME Settings show. gmobile's display panel name is only right when the compatibles are the device's own:
++ * a phone that borrows another's panel data (GMOBILE_DT_COMPATIBLES) was shown under that phone's name.
++ */
++static char *
++ms_about_panel_get_hostnamed_device (void)
++{
++  g_autoptr (GDBusProxy) proxy = NULL;
++  g_autoptr (GVariant) vendor = NULL;
++  g_autoptr (GVariant) model = NULL;
++  const char *v, *m;
++
++  proxy = g_dbus_proxy_new_for_bus_sync (G_BUS_TYPE_SYSTEM, G_DBUS_PROXY_FLAGS_NONE, NULL,
++                                         "org.freedesktop.hostname1", "/org/freedesktop/hostname1",
++                                         "org.freedesktop.hostname1", NULL, NULL);
++  if (!proxy)
++    return NULL;
++  model = g_dbus_proxy_get_cached_property (proxy, "HardwareModel");
++  if (!model)
++    return NULL;
++  m = g_variant_get_string (model, NULL);
++  if (gm_str_is_null_or_empty (m))
++    return NULL;
++  vendor = g_dbus_proxy_get_cached_property (proxy, "HardwareVendor");
++  v = vendor ? g_variant_get_string (vendor, NULL) : NULL;
++  if (gm_str_is_null_or_empty (v) || g_str_has_prefix (m, v))
++    return g_strdup (m);
++  return g_strdup_printf ("%s %s", v, m);
++}
++
++
+ static char *
+ ms_about_panel_get_device_info (void)
+ {
+-  g_auto (GStrv) compatibles = gm_device_tree_get_compatibles (NULL, NULL);
++  g_autofree char *hostnamed = ms_about_panel_get_hostnamed_device ();
++  g_auto (GStrv) compatibles = NULL;
+   g_autoptr (GmDeviceInfo) info = NULL;
+   const char *name;
+   GmDisplayPanel *panel;
+ 
++  if (hostnamed)
++    return g_steal_pointer (&hostnamed);
++
++  compatibles = gm_device_tree_get_compatibles (NULL, NULL);
+   if (gm_strv_is_null_or_empty (compatibles))
+     return NULL;
+ 
