@@ -18,9 +18,13 @@ Tested on a Poco X3 NFC (postmarketOS edge, gnome-shell-mobile 48, 360×800 dp a
 <img src="screenshots/notifications.png" width="200" alt="Notifications">
 <img src="screenshots/lockscreen.png" width="200" alt="Lock screen">
 </p>
+<p>
+<img src="screenshots/settings.png" width="200" alt="Settings">
+<img src="screenshots/sound-vibration.png" width="200" alt="Sound and vibration settings">
+</p>
 
-Home screen, app drawer, Control Center, recent apps, notifications and lock screen on a
-POCO X3 NFC.
+Home screen, app drawer, Control Center, recent apps, notifications, lock screen, settings and the
+Sound and vibration page (notification feedback, vibration pattern and strength) on a POCO X3 NFC.
 
 ## Features
 
