@@ -80,7 +80,16 @@ shell, or a window asking for attention right after a launch is now brought forw
 and next to none do. The launcher gives every app's new notification feedbackd's notification
 feedback: sound and vibration, vibration only or nothing, in one of four vibration patterns (Short,
 Double, Triple, Long) at an adjustable strength. Silent in Do Not Disturb, for apps whose sound is
-off, and while that app is in front.
+off, and while that app is in front. The status LED breathes (fades in and out, in the kernel's LED pattern
+trigger) while the screen is off and something is unread.
+
+**Desktop apps fit the phone** — a window whose minimum width is wider than the screen (desktop Chromium's
+is about 500 px on a 360 px phone) is shown scaled to exactly the screen's width; touches land where it is
+drawn. A window that is only wide for the moment is asked to fit first.
+
+**Keyboard on a tap** — the on-screen keyboard rises for a tap into a text field, not because an app focused
+one while opening (Android's rule). Qt apps report their caret a moment after asking for the keyboard; the
+policy waits for it instead of holding their keyboard back.
 
 **Settings** — the Extensions preferences window, styled after One UI settings (big touch rows, the
 title in the header): Home screen, Dock, App drawer (incl. hidden apps), Search (engine picker),

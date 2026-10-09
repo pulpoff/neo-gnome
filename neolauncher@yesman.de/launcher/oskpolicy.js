@@ -106,9 +106,29 @@ export class OskPolicy {
 
     /** Should this panel-state reach the keyboard? Only an ON without a recent tap on the field is held back. */
     _allow(state) {
-        if (state === Clutter.InputPanelState.OFF) this._pendingOn = false;
+        if (state === Clutter.InputPanelState.OFF) {
+            this._pendingOn = false;
+            if (this._caretWait) { GLib.source_remove(this._caretWait); this._caretWait = 0; }
+        }
         if (state !== Clutter.InputPanelState.ON || !this._settings.get_boolean('keyboard-on-tap-only')) return true;
         const since = (GLib.get_monotonic_time() - this._lastPress) / 1000;
+        // Qt asks for the panel before it reports where its caret is (a 0×0 rectangle for a moment): right
+        // after a tap, wait for the real one before deciding, or every Qt field that takes focus on a tap (the
+        // browser's address bar) was held back for good.
+        const r = Main.inputMethod._cursorRect;
+        if (since <= TAP_WINDOW_MS && r && r.width <= 0 && r.height <= 0) {
+            this._pendingOn = true;
+            if (!this._caretWait) this._caretWait = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
+                this._caretWait = 0;
+                if (this._pendingOn && this._tapOnField(this._lastPressPos)) {
+                    this._pendingOn = false;
+                    this._log?.('osk: allowed once the caret was known');
+                    Main.keyboard.open(Main.layoutManager.primaryIndex);
+                } else this._log?.('osk: held back (the caret is not where the tap was)');
+                return GLib.SOURCE_REMOVE;
+            });
+            return false;
+        }
         const onField = this._tapOnField(this._lastPressPos);
         const app = global.display.focus_window?.get_wm_class?.() ?? '?';
         if (since > TAP_WINDOW_MS || !onField) { this._pendingOn = true; this._log?.(`osk: held back (${Math.round(since)} ms since the last tap, on the field: ${onField}) for ${app}`); return false; }
@@ -126,6 +146,7 @@ export class OskPolicy {
 
     destroy() {
         if (this._pressId) { global.stage.disconnect(this._pressId); this._pressId = 0; }
+        if (this._caretWait) { GLib.source_remove(this._caretWait); this._caretWait = 0; }
         this._unhook();
         this._inj?.clear(); this._inj = null;
         if (this._kbMonId) { Main.layoutManager.disconnect(this._kbMonId); this._kbMonId = 0; }

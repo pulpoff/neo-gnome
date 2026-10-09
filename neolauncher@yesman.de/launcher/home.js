@@ -21,7 +21,7 @@ const {FolderView} = await import(`${here}/folder.js?gen=${gen}`);
 const {showIconPopup, showOptionsPopup} = await import(`${here}/popup.js?gen=${gen}`);
 const {Recents} = await import(`${here}/recents.js?gen=${gen}`);
 const {DragController, haptic} = await import(`${here}/drag.js?gen=${gen}`);
-const {NotificationDots, NotificationSounds} = await import(`${here}/notifications.js?gen=${gen}`);
+const {NotificationDots, NotificationSounds, NotificationLed} = await import(`${here}/notifications.js?gen=${gen}`);
 const {BackGesture} = await import(`${here}/backgesture.js?gen=${gen}`);
 const {Dash} = await import(`${here}/dash.js?gen=${gen}`);
 const {OskPolicy} = await import(`${here}/oskpolicy.js?gen=${gen}`);
@@ -29,6 +29,7 @@ const {PowerTweaks, closePowerDialog} = await import(`${here}/power.js?gen=${gen
 const {KeyboardRotation, RotationAnimation} = await import(`${here}/rotation.js?gen=${gen}`);
 const {UsbMode} = await import(`${here}/usbmode.js?gen=${gen}`);
 const {FullscreenGuard} = await import(`${here}/fullscreen.js?gen=${gen}`);
+const {WindowFitter} = await import(`${here}/fitwindow.js?gen=${gen}`);
 const {CursorGuard} = await import(`${here}/cursor.js?gen=${gen}`);
 const {ControlCenter} = await import(`${here}/controlcenter.js?gen=${gen}`);
 const {CallProximity} = await import(`${here}/proximity.js?gen=${gen}`);
@@ -149,6 +150,7 @@ class NeoHome extends St.Widget {
         try { this.rotationAnim = new RotationAnimation(log); } catch (e) { console.warn(`[neolauncher] rotation animation: ${e.message}`); }
         // the status bar hides for real fullscreen windows only
         try { this.fullscreenGuard = new FullscreenGuard(log); } catch (e) { console.warn(`[neolauncher] fullscreen guard: ${e.message}`); }
+        try { this.windowFitter = new WindowFitter(log); } catch (e) { console.warn(`[neolauncher] window fitter: ${e.message}`); }
         // no mouse arrow on a touch phone unless a mouse is really used
         try { this.cursorGuard = new CursorGuard(log); } catch (e) { console.warn(`[neolauncher] cursor guard: ${e.message}`); }
         // "Use USB for" when a computer is connected
@@ -202,6 +204,7 @@ class NeoHome extends St.Widget {
         this.drag = new DragController(this);
         this.dots = new NotificationDots(() => this.updateDots());
         try { this.notificationSounds = new NotificationSounds(); } catch (e) { console.warn(`[neolauncher] notification sounds: ${e.message}`); }
+        try { this.notificationLed = new NotificationLed(); } catch (e) { console.warn(`[neolauncher] notification led: ${e.message}`); }
         this.updateDots();
         this._dropBar = new St.BoxLayout({style_class: 'neo-drop-bar', x_expand: true, y_expand: true, y_align: Clutter.ActorAlign.START, x_align: Clutter.ActorAlign.CENTER, visible: false, opacity: 0});
         this._dropBar.add_child(new St.Icon({icon_name: 'user-trash-symbolic', icon_size: 20, y_align: Clutter.ActorAlign.CENTER}));
@@ -245,45 +248,50 @@ class NeoHome extends St.Widget {
     /** Also runs for a constructor that threw half-way: any member may be missing. */
     _onDestroy() {
         this._destroyed = true;
-        this._iconPacks?.stopPrewarm();
-        this.drag?.destroy(); this.drag = null;
-        for (const p of [...this._popups ?? []]) p.destroy();
-        this._cancelLaunchWatch?.();
-        this._customizeDialog?.close(); this._customizeDialog = null;
-        if (this._themeId) { this.settings.disconnect(this._themeId); this._themeId = 0; }
-        for (const id of this._iconIds ?? []) this.settings.disconnect(id); this._iconIds = [];
-        for (const id of this._prefIds ?? []) this.settings.disconnect(id); this._prefIds = [];
-        this.dots?.destroy(); this.dots = null;
-        this.notificationSounds?.destroy(); this.notificationSounds = null;
-        this.backGesture?.destroy(); this.backGesture = null;
-        this.oskPolicy?.destroy(); this.oskPolicy = null;
-        this.power?.destroy(); this.power = null;
-        this.keyboardRotation?.destroy(); this.keyboardRotation = null;
-        this.rotationAnim?.destroy(); this.rotationAnim = null;
-        if (this._shadeId) { this.settings?.disconnect?.(this._shadeId); this._shadeId = 0; }
-        for (const id of this._fwdIds ?? []) global.display.disconnect(id);
-        this._fwdIds = null;
-        if (this._fwdSeqId) { this._fwdTracker.disconnect(this._fwdSeqId); this._fwdSeqId = 0; }
-        if (this._fwdOrig) { Object.assign(Shell.App.prototype, this._fwdOrig); this._fwdOrig = null; }
-        for (const src of this._fwdSources ?? []) GLib.source_remove(src);
-        this._fwdSources = null;
-        this.controlCenter?.destroy(); this.controlCenter = null;
-        this.usbMode?.destroy(); this.usbMode = null;
-        this.fullscreenGuard?.destroy(); this.fullscreenGuard = null;
-        this.cursorGuard?.destroy(); this.cursorGuard = null;
-        if (this._drawerTimer) { GLib.source_remove(this._drawerTimer); this._drawerTimer = 0; }
-        for (const [obj, id] of this._barIds ?? []) obj.disconnect(id);
-        this._barIds = null;
-        Main.layoutManager.bottomPanelBox?.remove_style_class_name('neo-clear-bottom-bar');
-        Main.layoutManager.bottomPanelBox?.set_style(null);
-        this.callProximity?.destroy(); this.callProximity = null;
-        this.lockScreen?.destroy(); this.lockScreen = null;
-        this._unsub?.(); this._unsub = null; this.model?.destroy();
-        if (this._monitorsId) { Main.layoutManager.disconnect(this._monitorsId); this._monitorsId = 0; }
-        this._bgManager?.destroy(); this._bgManager = null;
+        // every step on its own: one that throws must not leave the later ones running (a leaked lock screen
+        // and power key handler made one press count several times after a reload)
+        const step = f => { try { f(); } catch (e) { console.warn(`[neolauncher] teardown: ${e.message}\n${e.stack}`); } };
+        step(() => { this._iconPacks?.stopPrewarm(); });
+        step(() => { this.drag?.destroy(); this.drag = null; });
+        step(() => { for (const p of [...this._popups ?? []]) p.destroy(); });
+        step(() => { this._cancelLaunchWatch?.(); });
+        step(() => { this._customizeDialog?.close(); this._customizeDialog = null; });
+        step(() => { if (this._themeId) { this.settings.disconnect(this._themeId); this._themeId = 0; } });
+        step(() => { for (const id of this._iconIds ?? []) this.settings.disconnect(id); this._iconIds = []; });
+        step(() => { for (const id of this._prefIds ?? []) this.settings.disconnect(id); this._prefIds = []; });
+        step(() => { this.dots?.destroy(); this.dots = null; });
+        step(() => { this.notificationSounds?.destroy(); this.notificationSounds = null; });
+        step(() => { this.notificationLed?.destroy(); this.notificationLed = null; });
+        step(() => { this.backGesture?.destroy(); this.backGesture = null; });
+        step(() => { this.oskPolicy?.destroy(); this.oskPolicy = null; });
+        step(() => { this.power?.destroy(); this.power = null; });
+        step(() => { this.keyboardRotation?.destroy(); this.keyboardRotation = null; });
+        step(() => { this.rotationAnim?.destroy(); this.rotationAnim = null; });
+        step(() => { if (this._shadeId) { this.settings?.disconnect?.(this._shadeId); this._shadeId = 0; } });
+        step(() => { for (const id of this._fwdIds ?? []) global.display.disconnect(id); });
+        step(() => { this._fwdIds = null; });
+        step(() => { if (this._fwdSeqId) { this._fwdTracker.disconnect(this._fwdSeqId); this._fwdSeqId = 0; } });
+        step(() => { if (this._fwdOrig) { Object.assign(Shell.App.prototype, this._fwdOrig); this._fwdOrig = null; } });
+        step(() => { for (const src of this._fwdSources ?? []) GLib.source_remove(src); });
+        step(() => { this._fwdSources = null; });
+        step(() => { this.controlCenter?.destroy(); this.controlCenter = null; });
+        step(() => { this.usbMode?.destroy(); this.usbMode = null; });
+        step(() => { this.fullscreenGuard?.destroy(); this.fullscreenGuard = null; });
+        step(() => { this.windowFitter?.destroy(); this.windowFitter = null; });
+        step(() => { this.cursorGuard?.destroy(); this.cursorGuard = null; });
+        step(() => { if (this._drawerTimer) { GLib.source_remove(this._drawerTimer); this._drawerTimer = 0; } });
+        step(() => { for (const [obj, id] of this._barIds ?? []) obj.disconnect(id); });
+        step(() => { this._barIds = null; });
+        step(() => { Main.layoutManager.bottomPanelBox?.remove_style_class_name('neo-clear-bottom-bar'); });
+        step(() => { Main.layoutManager.bottomPanelBox?.set_style(null); });
+        step(() => { this.callProximity?.destroy(); this.callProximity = null; });
+        step(() => { this.lockScreen?.destroy(); this.lockScreen = null; });
+        step(() => { this._unsub?.(); this._unsub = null; this.model?.destroy(); });
+        step(() => { if (this._monitorsId) { Main.layoutManager.disconnect(this._monitorsId); this._monitorsId = 0; } });
+        step(() => { this._bgManager?.destroy(); this._bgManager = null; });
         // the one place the shell's swipes are given back (the drawer and recents only switch them while running)
-        for (const {g, enabled} of this._shellGestures ?? []) g.enabled = enabled;
-        this._shellGestures = null;
+        step(() => { for (const {g, enabled} of this._shellGestures ?? []) g.enabled = enabled; });
+        step(() => { this._shellGestures = null; });
     }
 
     // ---------------- orientation ----------------
